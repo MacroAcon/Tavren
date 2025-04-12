@@ -27,6 +27,8 @@ from .routers import (
 )
 
 from .routers.buyer_data import buyer_data_router
+from .routers.llm_router import llm_router
+from .routers.embedding_router import embedding_router
 
 # Import exception handlers
 from .exceptions import register_exception_handlers
@@ -98,6 +100,12 @@ app.include_router(agent_router)
 
 # Data packaging routes
 app.include_router(data_packaging_router)
+
+# LLM integration routes
+app.include_router(llm_router)
+
+# Embedding and vector search routes
+app.include_router(embedding_router)
 
 # Authentication router
 app.include_router(auth_router)

@@ -10,6 +10,13 @@ python-multipart # Required for OAuth2 password flow form data
 slowapi # For rate limiting
 cryptography==42.0.0 # For encryption/decryption of data packages
 
+# LLM and Embedding Dependencies
+aiohttp==3.9.3 # For async HTTP requests to LLM APIs
+sentence-transformers==2.3.1 # For local embedding processing
+numpy>=1.24.0 # Required for vector operations
+pgvector # For PostgreSQL vector extensions (if using Postgres)
+tiktoken==0.6.0 # For token counting and text chunking
+
 # Testing dependencies
 pytest
 pytest-asyncio # For testing async code

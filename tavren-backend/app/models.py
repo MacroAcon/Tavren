@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, Float, Boolean, JSON
+from sqlalchemy import Column, String, Integer, DateTime, Text, Float, Boolean, JSON, ForeignKey, UniqueConstraint
 from sqlalchemy.sql import func
+from datetime import datetime
 from .database import Base
 
 class ConsentEvent(Base):
@@ -67,3 +68,34 @@ class DataPackageAudit(Base):
     
     def __repr__(self):
         return f"<DataPackageAudit(id={self.id}, operation={self.operation}, package_id={self.package_id})>"
+
+class DataPackageEmbedding(Base):
+    """
+    Model for storing embeddings of data packages to enable vector search capabilities.
+    Uses pgvector extension for PostgreSQL or simulates vector storage for SQLite.
+    """
+    __tablename__ = "data_package_embeddings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    package_id = Column(String, index=True)
+    embedding_type = Column(String, index=True)  # e.g., 'content', 'metadata', 'combined'
+    model_name = Column(String)  # Name of the model used for generating the embedding
+    dimension = Column(Integer)  # Dimension of the embedding vector
+    # For SQLite/other databases, store as JSON string
+    embedding_json = Column(Text)  # JSON serialized embedding vector
+    # Text search index to help with hybrid search
+    text_content = Column(Text, nullable=True)  # Original text that was embedded
+    # Metadata about the embedding
+    metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+    # Relationship to data package audit (optional)
+    audit_id = Column(Integer, ForeignKey("data_package_audits.id"), nullable=True)
+    
+    __table_args__ = (
+        UniqueConstraint('package_id', 'embedding_type', name='uix_package_embedding_type'),
+    )
+    
+    def __repr__(self):
+        return f"<DataPackageEmbedding(id={self.id}, package_id={self.package_id}, model={self.model_name})>"

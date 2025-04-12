@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     # Trust Tier thresholds
     LOW_TRUST_THRESHOLD: float = 0.3  # Below this is low trust
     HIGH_TRUST_THRESHOLD: float = 0.7  # Above this is high trust
+    
+    # Nvidia LLM API settings
+    NVIDIA_API_BASE_URL: str = "https://api.nvidia.com/v1"
+    NVIDIA_API_KEY: str = ""  # Must be set in environment variables
+    DEFAULT_LLM_MODEL: str = "llama3-70b-instruct"  # Default model for completions
+    DEFAULT_EMBEDDING_MODEL: str = "llama-3_2-nv-embedqa-1b-v2"  # Default model for embeddings
+    LLM_MODEL_TEMPERATURE: float = 0.7  # Default temperature setting
+    EMBEDDING_DIMENSION: int = 1024  # Dimension of embeddings from the default model
+    VECTOR_SEARCH_TOP_K: int = 5  # Number of top results to return in vector searches
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -88,6 +97,19 @@ class Settings(BaseSettings):
                 "WARNING: Using a randomly generated ADMIN_API_KEY. "
                 "This is only acceptable for development environments. "
                 "Set ADMIN_API_KEY environment variable for production to protect admin endpoints."
+            )
+            
+        if not self.NVIDIA_API_KEY:
+            is_production = os.environ.get('ENVIRONMENT') == 'production' or os.environ.get('ENV') == 'production'
+            if is_production:
+                raise ValueError("NVIDIA_API_KEY environment variable is required in production mode")
+            # In development, generate a placeholder but log a warning
+            self.NVIDIA_API_KEY = "nvidia_key_placeholder_for_development"
+            import logging
+            logging.warning(
+                "WARNING: Using a placeholder NVIDIA_API_KEY. "
+                "LLM functionality will not work until a valid key is provided. "
+                "Set NVIDIA_API_KEY environment variable before using LLM features."
             )
 
     model_config = SettingsConfigDict(

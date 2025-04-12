@@ -212,3 +212,150 @@ class DataSchemaInfo(BaseModel):
     required_fields: List[str]
     description: str
     example: Dict[str, Any]
+
+# Schema for LLM processing requests
+class LLMProcessRequest(BaseModel):
+    package_id: str
+    instructions: str
+    model_config: Optional[Dict[str, Any]] = None
+    max_tokens: Optional[int] = None
+
+# Schema for LLM processing responses
+class LLMProcessResponse(BaseModel):
+    request_id: str
+    model_used: str
+    package_id: str
+    result: str
+    usage: Dict[str, Any]
+    timestamp: float
+
+# Schema for embedding requests
+class EmbeddingRequest(BaseModel):
+    text: Optional[str] = None
+    package_id: Optional[str] = None
+    model_name: Optional[str] = None
+    embedding_type: Optional[str] = "content"
+    use_nvidia_api: bool = True
+    metadata: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "text": "Sample text to embed",
+                "package_id": None,
+                "model_name": "llama-3_2-nv-embedqa-1b-v2",
+                "embedding_type": "content",
+                "use_nvidia_api": True
+            }
+        }
+
+# Schema for embedding responses
+class EmbeddingResponse(BaseModel):
+    request_id: str
+    model_used: str
+    embedding: List[float]
+    dimension: int
+    usage: Dict[str, Any]
+    timestamp: float
+    package_id: Optional[str] = None
+
+# Schema for vector search requests
+class VectorSearchRequest(BaseModel):
+    query_text: str
+    embedding_type: Optional[str] = None
+    top_k: Optional[int] = None
+    use_nvidia_api: bool = True
+    filter_metadata: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "query_text": "User location data from last week",
+                "embedding_type": "content",
+                "top_k": 5,
+                "use_nvidia_api": True,
+                "filter_metadata": {"data_type": "location"}
+            }
+        }
+
+# Schema for vector search responses
+class VectorSearchResponse(BaseModel):
+    query: str
+    results: List[Dict[str, Any]]
+    count: int
+
+# Schema for package indexing requests
+class IndexPackageRequest(BaseModel):
+    package_id: str
+    use_nvidia_api: bool = True
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "package_id": "pkg_abc123",
+                "use_nvidia_api": True
+            }
+        }
+
+# Schema for package indexing responses
+class IndexPackageResponse(BaseModel):
+    package_id: str
+    embeddings_created: List[Dict[str, Any]]
+    data_type: str
+    record_count: int
+
+# Schema for RAG requests
+class RAGRequest(BaseModel):
+    query_text: str
+    top_k: Optional[int] = None
+    max_tokens: Optional[int] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "query_text": "What locations did the user visit last weekend?",
+                "top_k": 3,
+                "max_tokens": 1000
+            }
+        }
+
+# Schema for RAG responses
+class RAGResponse(BaseModel):
+    query: str
+    context: str
+    package_ids: List[str]
+    result_count: int
+    timestamp: float
+
+# Schema for RAG generation requests
+class RAGGenerationRequest(BaseModel):
+    query: str
+    instructions: Optional[str] = "Provide a concise and accurate response based on the retrieved context."
+    model_name: Optional[str] = None
+    top_k: Optional[int] = 3
+    context_max_tokens: Optional[int] = 2000
+    response_max_tokens: Optional[int] = 1000
+    temperature: Optional[float] = 0.7
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "query": "What locations did the user visit last weekend?",
+                "instructions": "Provide a concise summary of the user's locations from the retrieved data.",
+                "top_k": 3,
+                "context_max_tokens": 2000,
+                "response_max_tokens": 500,
+                "temperature": 0.7
+            }
+        }
+
+# Schema for RAG generation responses
+class RAGGenerationResponse(BaseModel):
+    request_id: str
+    query: str
+    response: str
+    context_packages: List[str]
+    context_count: int
+    model_used: str
+    usage: Dict[str, Any]
+    timestamp: float
