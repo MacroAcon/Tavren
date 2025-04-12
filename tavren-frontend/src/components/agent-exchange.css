@@ -1,0 +1,304 @@
+/* Agent Exchange Components CSS */
+
+.agent-exchange-container {
+  padding: 20px;
+  background-color: #f9f9fb;
+  border-radius: 10px;
+}
+
+.agent-exchange-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.agent-exchange-header h2 {
+  font-size: 1.5rem;
+  color: #333;
+  margin: 0;
+}
+
+.agent-exchange-list {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.exchange-item {
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.exchange-item:hover {
+  background-color: #f4f7fd;
+}
+
+.exchange-item:last-child {
+  border-bottom: none;
+}
+
+.exchange-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.exchange-title {
+  font-weight: 600;
+  color: #444;
+}
+
+.exchange-timestamp {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.exchange-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.exchange-detail {
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+}
+
+.exchange-detail-label {
+  color: #666;
+  margin-right: 5px;
+}
+
+.exchange-detail-value {
+  font-weight: 500;
+  color: #333;
+}
+
+.accepted-badge {
+  background-color: #e4f7ed;
+  color: #0e8a5d;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.declined-badge {
+  background-color: #fce8e8;
+  color: #c62828;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.compensation-tag {
+  background-color: #f1f1ff;
+  color: #5151cc;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+/* Exchange Detail View */
+.exchange-detail-container {
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  padding: 25px;
+}
+
+.exchange-detail-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.exchange-detail-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.exchange-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  margin: 30px 0;
+}
+
+.message-card {
+  display: flex;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.message-direction-marker {
+  width: 8px;
+}
+
+.message-incoming .message-direction-marker {
+  background-color: #607d8b;
+}
+
+.message-outgoing .message-direction-marker {
+  background-color: #4caf50;
+}
+
+.message-content {
+  flex: 1;
+  padding: 15px 20px;
+  background-color: #f9f9fb;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.message-sender {
+  font-weight: 600;
+  color: #333;
+}
+
+.message-type {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: #e0e0e0;
+  color: #555;
+}
+
+.message-body {
+  margin-top: 15px;
+  font-size: 0.95rem;
+}
+
+.message-field {
+  padding: 8px 0;
+  display: flex;
+}
+
+.message-field-label {
+  flex: 0 0 140px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.message-field-value {
+  flex: 1;
+  color: #333;
+  word-break: break-word;
+}
+
+.data-field {
+  background-color: #f5f8ff;
+  border-left: 3px solid #2962ff;
+  padding: 6px 10px;
+  margin: 5px 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.consent-decision {
+  margin-top: 20px;
+  padding: 15px 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.consent-decision.accepted {
+  background-color: #e8f5e9;
+  border: 1px solid #c8e6c9;
+}
+
+.consent-decision.declined {
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+}
+
+.consent-icon {
+  font-size: 1.8rem;
+  margin-right: 15px;
+}
+
+.consent-info {
+  flex: 1;
+}
+
+.consent-status {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.consent-accepted {
+  color: #2e7d32;
+}
+
+.consent-declined {
+  color: #c62828;
+}
+
+.consent-reason {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+.alternative-suggestion {
+  background-color: #fff9c4;
+  border: 1px solid #fff59d;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.alternative-header {
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.alternative-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.no-exchanges {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  color: #666;
+}
+
+.no-exchanges-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  opacity: 0.3;
+}
+
+.empty-state-message {
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.empty-state-desc {
+  font-size: 0.9rem;
+} 

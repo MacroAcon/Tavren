@@ -197,3 +197,27 @@ header {
   color: #333;
   margin-bottom: 1rem;
 }
+
+/* Header styles */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+header nav {
+  display: flex;
+  gap: 15px;
+}
+
+header nav a {
+  color: #333;
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+header nav a:hover {
+  background-color: #f0f0f0;
+}

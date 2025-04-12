@@ -90,6 +90,9 @@ app.include_router(reward_router)
 app.include_router(wallet_router)
 app.include_router(payout_router)
 
+# Agent communication routes
+app.include_router(agent_router)
+
 # Authentication router
 app.include_router(auth_router)
 
