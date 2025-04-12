@@ -3,6 +3,7 @@ import os
 import logging.config
 import secrets
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 # This ensures correct .env loading regardless of where the app is run
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -51,10 +52,17 @@ class Settings(BaseSettings):
     NVIDIA_API_BASE_URL: str = "https://api.nvidia.com/v1"
     NVIDIA_API_KEY: str = ""  # Must be set in environment variables
     DEFAULT_LLM_MODEL: str = "llama3-70b-instruct"  # Default model for completions
-    DEFAULT_EMBEDDING_MODEL: str = "llama-3_2-nv-embedqa-1b-v2"  # Default model for embeddings
+    DEFAULT_EMBEDDING_MODEL: str = "nvidia/embedding-model"
     LLM_MODEL_TEMPERATURE: float = 0.7  # Default temperature setting
-    EMBEDDING_DIMENSION: int = 1024  # Dimension of embeddings from the default model
-    VECTOR_SEARCH_TOP_K: int = 5  # Number of top results to return in vector searches
+    EMBEDDING_DIMENSION: int = 1536  # Default dimension for embeddings
+    VECTOR_SEARCH_TOP_K: int = 5  # Default number of results for vector search
+
+    # Cache settings
+    REDIS_URL: Optional[str] = None  # Redis connection URL
+    CACHE_TTL_SECONDS: int = 3600  # Default TTL for cached items (1 hour)
+    CACHE_MAX_SIZE: int = 1000  # Maximum number of items in memory cache
+    EMBEDDING_CACHE_TTL: int = 86400  # TTL for embeddings (24 hours)
+    SEARCH_CACHE_TTL: int = 1800  # TTL for search results (30 minutes)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

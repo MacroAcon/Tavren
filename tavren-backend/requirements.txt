@@ -17,6 +17,11 @@ numpy>=1.24.0 # Required for vector operations
 pgvector # For PostgreSQL vector extensions (if using Postgres)
 tiktoken==0.6.0 # For token counting and text chunking
 
+# Caching and performance
+redis>=5.0.0 # For Redis caching
+aioredis>=2.0.0 # For async Redis operations
+cachetools>=5.0.0 # For in-memory caching
+
 # Testing dependencies
 pytest
 pytest-asyncio # For testing async code

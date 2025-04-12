@@ -1,7 +1,14 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, Float, Boolean, JSON, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, String, Integer, DateTime, Text, Float, Boolean, JSON, ForeignKey, UniqueConstraint, case
 from sqlalchemy.sql import func
 from datetime import datetime
 from .database import Base
+from sqlalchemy.dialects.postgresql import JSONB
+from .config import settings
+import json
+
+# Import pgvector's Vector type if using PostgreSQL
+if settings.DATABASE_URL.startswith('postgresql'):
+    from pgvector.sqlalchemy import Vector
 
 class ConsentEvent(Base):
     __tablename__ = "consent_events"
@@ -81,8 +88,15 @@ class DataPackageEmbedding(Base):
     embedding_type = Column(String, index=True)  # e.g., 'content', 'metadata', 'combined'
     model_name = Column(String)  # Name of the model used for generating the embedding
     dimension = Column(Integer)  # Dimension of the embedding vector
-    # For SQLite/other databases, store as JSON string
-    embedding_json = Column(Text)  # JSON serialized embedding vector
+    
+    # Conditionally use pgvector Vector type or fallback to JSON string
+    if settings.DATABASE_URL.startswith('postgresql'):
+        # Use PostgreSQL vector type from pgvector
+        embedding = Column(Vector(settings.EMBEDDING_DIMENSION))
+    
+    # Always keep JSON serialized version for backup and cross-DB compatibility
+    embedding_json = Column(Text)
+    
     # Text search index to help with hybrid search
     text_content = Column(Text, nullable=True)  # Original text that was embedded
     # Metadata about the embedding
@@ -96,6 +110,16 @@ class DataPackageEmbedding(Base):
     __table_args__ = (
         UniqueConstraint('package_id', 'embedding_type', name='uix_package_embedding_type'),
     )
+    
+    def get_embedding_vector(self):
+        """
+        Returns the embedding vector, handling both pgvector and JSON storage methods.
+        """
+        if settings.DATABASE_URL.startswith('postgresql') and hasattr(self, 'embedding') and self.embedding is not None:
+            return self.embedding
+        else:
+            # Fallback to JSON if vector not available
+            return json.loads(self.embedding_json)
     
     def __repr__(self):
         return f"<DataPackageEmbedding(id={self.id}, package_id={self.package_id}, model={self.model_name})>"

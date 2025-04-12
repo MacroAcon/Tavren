@@ -7,13 +7,15 @@ import logging
 import json
 import numpy as np
 import time
+import hashlib
 from typing import Dict, Any, List, Optional, Tuple, Union
 from fastapi import Depends
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sentence_transformers import SentenceTransformer
 import uuid
 from datetime import datetime
+import asyncio
 
 from app.database import get_db
 from app.models import DataPackageEmbedding, DataPackage
@@ -22,9 +24,21 @@ from app.services.llm_service import LLMService, get_llm_service
 from app.services.data_packaging import DataPackagingService, get_data_packaging_service
 from app.services.data_service import DataService, get_data_service
 from app.utils.text_utils import count_tokens, truncate_text_to_token_limit, chunk_text
+from app.utils.cache_utils import (
+    cache_embedding, get_cached_embedding,
+    cache_vector_search, get_cached_vector_search,
+    cached
+)
 
 # Set up logging
 log = logging.getLogger("app")
+
+# Import pgvector specific functions if using PostgreSQL
+if settings.DATABASE_URL.startswith('postgresql'):
+    from pgvector.sqlalchemy import Vector
+    from sqlalchemy.sql.expression import cast
+    from sqlalchemy import Float as SqlFloat
+    from sqlalchemy.dialects.postgresql import ARRAY
 
 class EmbeddingService:
     """Service for managing vector embeddings and semantic search"""
@@ -46,11 +60,12 @@ class EmbeddingService:
         self.default_model_name = settings.DEFAULT_EMBEDDING_MODEL
         self.vector_dimension = settings.EMBEDDING_DIMENSION
         self.vector_search_top_k = settings.VECTOR_SEARCH_TOP_K
+        self.is_postgres = settings.DATABASE_URL.startswith('postgresql')
         
         # Local embedding model for smaller operations or fallback
         self._local_model = None
         
-        log.info(f"Embedding Service initialized with dimension {self.vector_dimension}")
+        log.info(f"Embedding Service initialized with dimension {self.vector_dimension} and PostgreSQL support: {self.is_postgres}")
     
     def _get_local_model(self) -> SentenceTransformer:
         """Lazy load the local embedding model when needed."""
@@ -122,6 +137,10 @@ class EmbeddingService:
                 audit_id=audit_id
             )
             
+            # If using PostgreSQL with pgvector, populate the embedding column
+            if self.is_postgres:
+                setattr(embedding_record, 'embedding', embedding_vector)
+            
             # Save to database
             self.db.add(embedding_record)
             await self.db.commit()
@@ -161,6 +180,19 @@ class EmbeddingService:
             Dict with embedding information or None if not found
         """
         try:
+            # Try to get from cache first
+            cache_key = None
+            if embedding_id:
+                cache_key = f"{embedding_id}"
+            elif package_id and embedding_type:
+                cache_key = f"{package_id}:{embedding_type}"
+            
+            if cache_key:
+                cached_embedding = await get_cached_embedding(cache_key)
+                if cached_embedding:
+                    log.info(f"Retrieved embedding from cache: {cache_key}")
+                    return cached_embedding
+            
             # Construct the query based on provided parameters
             if embedding_id:
                 query = select(DataPackageEmbedding).where(DataPackageEmbedding.id == embedding_id)
@@ -179,10 +211,14 @@ class EmbeddingService:
             if not embedding_record:
                 return None
             
-            # Parse the embedding vector from JSON
-            embedding_vector = json.loads(embedding_record.embedding_json)
+            # Parse the embedding vector from JSON or get from vector column
+            if self.is_postgres and hasattr(embedding_record, 'embedding') and embedding_record.embedding is not None:
+                embedding_vector = embedding_record.embedding
+            else:
+                embedding_vector = json.loads(embedding_record.embedding_json)
             
-            return {
+            # Prepare the response
+            embedding_data = {
                 "id": embedding_record.id,
                 "package_id": embedding_record.package_id,
                 "embedding_type": embedding_record.embedding_type,
@@ -194,6 +230,12 @@ class EmbeddingService:
                 "created_at": embedding_record.created_at,
                 "updated_at": embedding_record.updated_at
             }
+            
+            # Cache the embedding for future retrieval
+            if cache_key:
+                await cache_embedding(cache_key, embedding_data, settings.EMBEDDING_CACHE_TTL)
+            
+            return embedding_data
         
         except Exception as e:
             log.error(f"Error retrieving embedding: {str(e)}", exc_info=True)
@@ -208,76 +250,123 @@ class EmbeddingService:
         filter_metadata: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Perform vector search using a query text.
+        Perform vector similarity search using query text.
         
         Args:
             query_text: Text to search for
-            embedding_type: Type of embeddings to search
-            top_k: Number of results to return
-            use_nvidia_api: Whether to use Nvidia API for query embedding
-            filter_metadata: Filter results by metadata fields
+            embedding_type: Optional filter for embedding type
+            top_k: Number of results to return (default from settings)
+            use_nvidia_api: Whether to use Nvidia API for encoding
+            filter_metadata: Optional metadata filters
             
         Returns:
-            List of search results with similarity scores
+            List of results with similarity scores
         """
         try:
-            # Use specified parameters or defaults
             top_k = top_k or self.vector_search_top_k
             
-            # Generate query embedding
+            # Generate a cache key for this search
+            query_params = {
+                "query": query_text[:100],  # Limit length for cache key
+                "embedding_type": embedding_type,
+                "top_k": top_k,
+                "use_nvidia_api": use_nvidia_api
+            }
+            
+            if filter_metadata:
+                # Sort to ensure consistent keys
+                sorted_metadata = dict(sorted(filter_metadata.items()))
+                query_params["filter_metadata"] = json.dumps(sorted_metadata)
+            
+            # Hash the parameters to create a consistent cache key
+            query_hash = hashlib.md5(json.dumps(query_params).encode()).hexdigest()
+            
+            # Try to get from cache
+            cached_results = await get_cached_vector_search(query_hash)
+            if cached_results is not None:
+                log.info(f"Vector search cache hit for query: {query_text[:50]}...")
+                return cached_results
+            
+            # Generate embedding for query text
             if use_nvidia_api:
-                # Use Nvidia's API for embedding generation
                 embedding_result = await self.llm_service.generate_embedding(
                     text=query_text,
                     model_name=self.default_model_name
                 )
                 query_embedding = embedding_result.get("embedding", [])
             else:
-                # Use local model for embedding generation
                 local_model = self._get_local_model()
                 query_embedding = local_model.encode(query_text).tolist()
             
-            # Retrieve all embeddings from database (optimized for smaller dataset)
-            # For larger datasets, this would need to be optimized with a vector database
-            query = select(DataPackageEmbedding)
+            # Build the query
+            if self.is_postgres:
+                # Use pgvector's native similarity search
+                # Convert the query embedding to a PostgreSQL array
+                query = select(
+                    DataPackageEmbedding,
+                    func.cosine_similarity(DataPackageEmbedding.embedding, query_embedding).label("similarity")
+                ).order_by(
+                    func.cosine_similarity(DataPackageEmbedding.embedding, query_embedding).desc()
+                )
+            else:
+                # For non-PostgreSQL databases, we'll need to fetch all records and compute similarity in Python
+                query = select(DataPackageEmbedding)
+            
+            # Apply filters if provided
             if embedding_type:
                 query = query.where(DataPackageEmbedding.embedding_type == embedding_type)
             
-            result = await self.db.execute(query)
-            embedding_records = result.scalars().all()
+            if filter_metadata:
+                for key, value in filter_metadata.items():
+                    # This assumes the metadata is stored in a JSONB column or equivalent
+                    # May need adjustment based on DB type and schema
+                    query = query.where(DataPackageEmbedding.metadata[key].astext == str(value))
             
-            # Calculate similarity scores and rank results
-            search_results = []
-            for record in embedding_records:
-                # Parse stored embedding
-                stored_embedding = json.loads(record.embedding_json)
+            # Execute the query
+            if self.is_postgres:
+                # For PostgreSQL, limit in the query
+                query = query.limit(top_k)
+                result = await self.db.execute(query)
+                records = result.all()
+                results = [
+                    {
+                        "id": record.DataPackageEmbedding.id,
+                        "package_id": record.DataPackageEmbedding.package_id,
+                        "embedding_type": record.DataPackageEmbedding.embedding_type,
+                        "text_content": record.DataPackageEmbedding.text_content,
+                        "metadata": record.DataPackageEmbedding.metadata,
+                        "similarity": float(record.similarity)
+                    }
+                    for record in records
+                ]
+            else:
+                # For non-PostgreSQL, compute similarity in Python
+                result = await self.db.execute(query)
+                records = result.scalars().all()
                 
-                # Calculate cosine similarity
-                similarity = self._calculate_cosine_similarity(query_embedding, stored_embedding)
+                # Compute similarity scores
+                results = []
+                for record in records:
+                    embedding_vector = json.loads(record.embedding_json)
+                    similarity = self._calculate_cosine_similarity(query_embedding, embedding_vector)
+                    
+                    results.append({
+                        "id": record.id,
+                        "package_id": record.package_id,
+                        "embedding_type": record.embedding_type,
+                        "text_content": record.text_content,
+                        "metadata": record.metadata,
+                        "similarity": similarity
+                    })
                 
-                # Apply metadata filtering if specified
-                if filter_metadata and record.metadata:
-                    # Check if all filter conditions are met
-                    if not all(record.metadata.get(k) == v for k, v in filter_metadata.items() if k in record.metadata):
-                        continue
-                
-                # Add to results
-                search_results.append({
-                    "id": record.id,
-                    "package_id": record.package_id,
-                    "similarity": float(similarity),
-                    "text_content": record.text_content,
-                    "metadata": record.metadata,
-                    "embedding_type": record.embedding_type,
-                    "created_at": record.created_at
-                })
+                # Sort by similarity and take top_k
+                results = sorted(results, key=lambda x: x["similarity"], reverse=True)[:top_k]
             
-            # Sort by similarity (highest first) and take top k
-            search_results.sort(key=lambda x: x["similarity"], reverse=True)
-            search_results = search_results[:top_k]
+            # Cache the results
+            await cache_vector_search(query_hash, results, settings.SEARCH_CACHE_TTL)
             
-            log.info(f"Vector search found {len(search_results)} results for query: {query_text[:50]}...")
-            return search_results
+            log.info(f"Vector search completed with {len(results)} results")
+            return results
         
         except Exception as e:
             log.error(f"Error performing vector search: {str(e)}", exc_info=True)
@@ -289,121 +378,217 @@ class EmbeddingService:
         use_nvidia_api: bool = True,
         model_name: Optional[str] = None,
         chunk_size: int = 512,
-        chunk_overlap: int = 50
+        chunk_overlap: int = 50,
+        max_concurrent_tasks: int = 5,
+        content_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Create embeddings for a data package and its components.
+        Index a data package by generating and storing embeddings for its content.
+        Optimized with parallel processing for large documents.
         
         Args:
             package_id: ID of the data package to index
-            use_nvidia_api: Whether to use Nvidia API for embeddings
-            model_name: Optional embedding model to use
-            chunk_size: Maximum token size for each chunk
-            chunk_overlap: Overlap tokens between chunks
+            use_nvidia_api: Whether to use Nvidia API for embedding generation
+            model_name: Name of the model to use for embedding
+            chunk_size: Maximum tokens per content chunk
+            chunk_overlap: Token overlap between chunks
+            max_concurrent_tasks: Maximum number of concurrent embedding tasks
+            content_type: Optional type of content for specialized chunking strategies
             
         Returns:
-            Dict with indexing results
+            Dict with indexing statistics
         """
+        start_time = time.time()
+        
         try:
-            # Get the data package
-            package_data, error = await self.data_packaging_service.get_package_by_id(package_id)
-            if error:
-                raise Exception(f"Failed to retrieve data package: {error.get('reason')}")
+            # Get the data package content
+            package_data = await self.data_service.get_data_package(package_id)
             
-            # Extract package data
-            data_content = package_data.get("content", {})
-            data_metadata = package_data.get("metadata", {})
+            if not package_data:
+                raise ValueError(f"Data package {package_id} not found")
             
-            # Convert package content to string for embedding
-            if isinstance(data_content, dict) or isinstance(data_content, list):
-                content_text = json.dumps(data_content)
+            # Extract content from package
+            package_content = package_data.get("content", "")
+            package_metadata = package_data.get("metadata", {})
+            
+            if not package_content and not package_metadata:
+                raise ValueError(f"Data package {package_id} has no content or metadata")
+            
+            # Optimize chunking strategy based on content type
+            if content_type:
+                chunk_params = self._get_chunking_params_for_content_type(content_type, chunk_size, chunk_overlap)
+                chunk_size = chunk_params["chunk_size"]
+                chunk_overlap = chunk_params["chunk_overlap"]
+                respect_boundaries = chunk_params["respect_boundaries"]
             else:
-                content_text = str(data_content)
+                respect_boundaries = True
             
-            # Create content embedding
-            content_result = await self.create_embedding(
-                text_content=content_text,
-                package_id=package_id,
-                embedding_type="content",
-                use_nvidia_api=use_nvidia_api,
-                metadata={
-                    "data_type": data_metadata.get("data_type", "unknown"),
-                    "record_count": data_metadata.get("record_count", 0),
-                    "schema_version": data_metadata.get("schema_version", "unknown")
-                }
+            # Extract metadata as text for embedding
+            metadata_text = json.dumps(package_metadata)
+            
+            # Chunk the content for embedding
+            content_chunks = chunk_text(
+                package_content, 
+                max_tokens=chunk_size,
+                overlap_tokens=chunk_overlap,
+                respect_boundaries=respect_boundaries
             )
             
-            # Create metadata embedding if available
-            metadata_result = None
-            if data_metadata:
-                metadata_text = json.dumps(data_metadata)
-                metadata_result = await self.create_embedding(
-                    text_content=metadata_text,
-                    package_id=package_id,
-                    embedding_type="metadata",
-                    use_nvidia_api=use_nvidia_api,
-                    metadata={
-                        "data_type": data_metadata.get("data_type", "unknown")
+            log.info(f"Split package {package_id} into {len(content_chunks)} chunks for embedding")
+            
+            # Generate embeddings in parallel with rate limiting
+            semaphore = asyncio.Semaphore(max_concurrent_tasks)
+            
+            # Create tasks for parallel processing
+            async def process_chunk(chunk_text, chunk_idx):
+                async with semaphore:
+                    # Add chunk index to metadata for tracing
+                    chunk_metadata = {
+                        "chunk_index": chunk_idx,
+                        "total_chunks": len(content_chunks),
+                        "package_id": package_id,
+                        "source": "content_chunk",
+                        "chunk_size": chunk_size,
+                        "chunk_overlap": chunk_overlap
                     }
-                )
+                    
+                    # Generate embedding
+                    return await self.create_embedding(
+                        text_content=chunk_text,
+                        package_id=package_id,
+                        embedding_type=f"content_chunk_{chunk_idx}",
+                        model_name=model_name,
+                        use_nvidia_api=use_nvidia_api,
+                        metadata=chunk_metadata
+                    )
             
-            # Combine content and metadata with clear separation
-            full_text = f"CONTENT:\n{content_text}\n\nMETADATA:\n{metadata_text}"
+            # Create and gather tasks
+            content_chunk_tasks = [
+                process_chunk(chunk, idx) 
+                for idx, chunk in enumerate(content_chunks)
+            ]
             
-            # Check if we need chunking based on token count
-            total_tokens = count_tokens(full_text)
+            # Process content chunks and metadata in parallel
+            metadata_task = self.create_embedding(
+                text_content=metadata_text,
+                package_id=package_id,
+                embedding_type="metadata",
+                model_name=model_name,
+                use_nvidia_api=use_nvidia_api,
+                metadata={"source": "metadata", "package_id": package_id}
+            )
             
-            # Create chunks if needed
-            if total_tokens > chunk_size:
-                # Advanced semantic chunking
-                chunks = chunk_text(
-                    text=full_text,
-                    max_tokens=chunk_size,
-                    overlap_tokens=chunk_overlap,
-                    respect_boundaries=True
-                )
-                log.info(f"Split package into {len(chunks)} chunks")
-            else:
-                chunks = [full_text]
+            # Start all embedding tasks
+            all_embedding_tasks = content_chunk_tasks + [metadata_task]
+            embedding_results = await asyncio.gather(*all_embedding_tasks, return_exceptions=True)
             
-            # Create embeddings for each chunk
-            embedding_ids = []
-            for i, chunk in enumerate(chunks):
-                # Create chunk embedding
-                embedding_data = await self.create_embedding(
-                    text=chunk,
+            # Process results and count successful embeddings
+            successful_embeddings = 0
+            failed_embeddings = 0
+            
+            for result in embedding_results:
+                if isinstance(result, Exception):
+                    failed_embeddings += 1
+                    log.error(f"Embedding generation failed: {str(result)}")
+                else:
+                    successful_embeddings += 1
+            
+            # Create a combined embedding for the entire package if needed
+            # This is useful for high-level similarity search
+            if package_content:
+                # Truncate content if too long for a single embedding
+                max_combined_tokens = 1000  # Adjust based on model capacity
+                truncated_content = truncate_text_to_token_limit(package_content, max_combined_tokens)
+                
+                combined_embedding = await self.create_embedding(
+                    text_content=truncated_content,
                     package_id=package_id,
-                    embedding_type="content",
+                    embedding_type="combined",
+                    model_name=model_name,
                     use_nvidia_api=use_nvidia_api,
-                    metadata={
-                        "data_type": data_metadata.get("data_type", "unknown"),
-                        "record_count": data_metadata.get("record_count", 0),
-                        "schema_version": data_metadata.get("schema_version", "unknown")
-                    }
+                    metadata={"source": "combined", "package_id": package_id}
                 )
-                
-                # Store the embedding
-                embedding_model = await self.get_embedding(embedding_data["id"], package_id, "content")
-                embedding_ids.append(embedding_model["id"])
-                
-                log.info(f"Indexed chunk {i+1}/{len(chunks)} for package {package_id}")
+                successful_embeddings += 1
             
-            # Return results
+            # Calculate statistics
+            end_time = time.time()
+            processing_time = end_time - start_time
+            
+            log.info(f"Indexed package {package_id} in {processing_time:.2f}s with {successful_embeddings} embeddings")
+            
             return {
                 "package_id": package_id,
-                "embeddings_created": len(embedding_ids),
-                "embedding_ids": embedding_ids,
-                "total_tokens": total_tokens,
-                "chunks": len(chunks),
-                "model": model_name or self.default_model_name,
-                "data_type": data_metadata.get("data_type", "unknown"),
-                "record_count": data_metadata.get("record_count", 0),
-                "timestamp": datetime.utcnow().isoformat()
+                "total_chunks": len(content_chunks),
+                "successful_embeddings": successful_embeddings,
+                "failed_embeddings": failed_embeddings,
+                "processing_time_seconds": processing_time,
+                "chunk_size": chunk_size,
+                "chunk_overlap": chunk_overlap,
+                "model_name": model_name or self.default_model_name,
+                "status": "completed"
             }
-        
+            
         except Exception as e:
-            log.error(f"Error indexing data package: {str(e)}", exc_info=True)
-            raise Exception(f"Failed to index data package: {str(e)}")
+            log.error(f"Error indexing data package {package_id}: {str(e)}", exc_info=True)
+            return {
+                "package_id": package_id,
+                "status": "failed",
+                "error": str(e),
+                "processing_time_seconds": time.time() - start_time
+            }
+    
+    def _get_chunking_params_for_content_type(
+        self, 
+        content_type: str,
+        default_chunk_size: int,
+        default_chunk_overlap: int
+    ) -> Dict[str, Any]:
+        """
+        Get optimized chunking parameters for different content types.
+        
+        Args:
+            content_type: Type of content (e.g., 'text', 'code', 'legal', 'medical')
+            default_chunk_size: Default chunk size in tokens
+            default_chunk_overlap: Default overlap in tokens
+            
+        Returns:
+            Dict with chunking parameters
+        """
+        # Define chunking strategies for different content types
+        chunking_strategies = {
+            "text": {
+                "chunk_size": default_chunk_size,
+                "chunk_overlap": default_chunk_overlap,
+                "respect_boundaries": True
+            },
+            "code": {
+                "chunk_size": 768,  # Larger chunks for code to maintain context
+                "chunk_overlap": 150,  # More overlap for code
+                "respect_boundaries": True  # Try to break at function boundaries
+            },
+            "legal": {
+                "chunk_size": 512,
+                "chunk_overlap": 100,
+                "respect_boundaries": True  # Try to break at paragraph/section boundaries
+            },
+            "medical": {
+                "chunk_size": 384,
+                "chunk_overlap": 75,
+                "respect_boundaries": True
+            },
+            "conversational": {
+                "chunk_size": 256,  # Smaller chunks for dialogue
+                "chunk_overlap": 50,
+                "respect_boundaries": True  # Break at speaker changes
+            }
+        }
+        
+        # Return parameters for the specified content type, or defaults if not found
+        return chunking_strategies.get(content_type, {
+            "chunk_size": default_chunk_size,
+            "chunk_overlap": default_chunk_overlap,
+            "respect_boundaries": True
+        })
     
     async def retrieve_context(
         self,
@@ -491,6 +676,114 @@ class EmbeddingService:
         
         # Calculate cosine similarity
         return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+    async def batch_process_packages(
+        self,
+        package_ids: List[str],
+        use_nvidia_api: bool = True,
+        model_name: Optional[str] = None,
+        chunk_size: int = 512,
+        chunk_overlap: int = 50,
+        max_concurrent_packages: int = 3,
+        max_concurrent_tasks_per_package: int = 5,
+        content_types: Optional[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Process multiple data packages in parallel with controlled concurrency.
+        
+        Args:
+            package_ids: List of package IDs to process
+            use_nvidia_api: Whether to use Nvidia API for embeddings
+            model_name: Optional embedding model to use
+            chunk_size: Maximum token size for each chunk
+            chunk_overlap: Overlap tokens between chunks
+            max_concurrent_packages: Maximum packages to process in parallel
+            max_concurrent_tasks_per_package: Maximum concurrent tasks per package
+            content_types: Optional dict mapping package IDs to content types
+            
+        Returns:
+            Dict with batch processing statistics
+        """
+        start_time = time.time()
+        
+        if not package_ids:
+            return {
+                "status": "error", 
+                "message": "No package IDs provided",
+                "processing_time_seconds": 0
+            }
+        
+        # Initialize content types if not provided
+        content_types = content_types or {}
+        
+        # Create a semaphore to limit concurrent package processing
+        package_semaphore = asyncio.Semaphore(max_concurrent_packages)
+        
+        # Function to process a single package with the semaphore
+        async def process_package(package_id: str):
+            async with package_semaphore:
+                content_type = content_types.get(package_id)
+                return await self.index_data_package(
+                    package_id=package_id,
+                    use_nvidia_api=use_nvidia_api,
+                    model_name=model_name,
+                    chunk_size=chunk_size,
+                    chunk_overlap=chunk_overlap,
+                    max_concurrent_tasks=max_concurrent_tasks_per_package,
+                    content_type=content_type
+                )
+        
+        # Create tasks for all packages
+        tasks = [process_package(pkg_id) for pkg_id in package_ids]
+        
+        try:
+            # Process packages with controlled concurrency
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Calculate statistics
+            successful = 0
+            failed = 0
+            total_chunks = 0
+            failed_packages = []
+            
+            for idx, result in enumerate(results):
+                if isinstance(result, Exception):
+                    failed += 1
+                    failed_packages.append({
+                        "package_id": package_ids[idx],
+                        "error": str(result)
+                    })
+                elif result.get("status") == "failed":
+                    failed += 1
+                    failed_packages.append({
+                        "package_id": package_ids[idx],
+                        "error": result.get("error", "Unknown error")
+                    })
+                else:
+                    successful += 1
+                    total_chunks += result.get("total_chunks", 0)
+            
+            end_time = time.time()
+            processing_time = end_time - start_time
+            
+            return {
+                "status": "completed",
+                "total_packages": len(package_ids),
+                "successful_packages": successful,
+                "failed_packages": failed,
+                "failed_details": failed_packages if failed > 0 else None,
+                "total_chunks": total_chunks,
+                "processing_time_seconds": processing_time,
+                "throughput_packages_per_second": successful / processing_time if processing_time > 0 else 0
+            }
+        
+        except Exception as e:
+            log.error(f"Error in batch processing: {str(e)}", exc_info=True)
+            return {
+                "status": "error",
+                "message": f"Batch processing failed: {str(e)}",
+                "processing_time_seconds": time.time() - start_time
+            }
 
 
 # Dependency for FastAPI

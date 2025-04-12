@@ -52,13 +52,28 @@ services:
       AUTO_PAYOUT_MIN_TRUST_SCORE: ${AUTO_PAYOUT_MIN_TRUST_SCORE:-50.0}
       AUTO_PAYOUT_MAX_AMOUNT: ${AUTO_PAYOUT_MAX_AMOUNT:-100.0}
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     networks:
       - tavren_network
 
+  redis:
+    image: redis:7-alpine
+    container_name: tavren-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-tavren_redis_password}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   tavren_network:

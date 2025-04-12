@@ -2,6 +2,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 # Import the settings instance
 from .config import settings
+from sqlalchemy import event
+from sqlalchemy.schema import DDL
 
 # Async engine setup
 # Note: asyncpg requires the database URL scheme to be postgresql+asyncpg
@@ -11,6 +13,13 @@ async_engine = create_async_engine(
     settings.DATABASE_URL,
     echo=True, # Optional: for debugging SQL statements
 )
+
+# Create pgvector extension if using PostgreSQL
+if settings.DATABASE_URL.startswith('postgresql'):
+    @event.listens_for(async_engine.sync_engine, "first_connect")
+    def create_pgvector_extension(conn, conn_record):
+        # Execute the CREATE EXTENSION command to enable pgvector
+        conn.execute(DDL('CREATE EXTENSION IF NOT EXISTS vector;'))
 
 # Async session setup
 AsyncSessionLocal = sessionmaker(
