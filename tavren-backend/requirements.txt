@@ -1,0 +1,9 @@
+fastapi==0.105.0
+uvicorn[standard]==0.24.0 # Includes extras like httptools, websockets
+SQLAlchemy==2.0.23
+pydantic==2.3.0
+python-dotenv==1.0.0 # For environment variable loading
+greenlet==3.1.1 # Often needed by SQLAlchemy
+requests # For the payout processor script
+
+# Add other specific dependencies for run_payout_processor.py if needed 

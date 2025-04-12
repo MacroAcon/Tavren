@@ -1,12 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
+import pathlib
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from collections import defaultdict
 import re
 from datetime import datetime
+from dotenv import load_dotenv
 from database import SessionLocal, engine
 from models import Base, ConsentEvent, Reward, PayoutRequest
 from schemas import (
@@ -26,9 +28,16 @@ from schemas import (
     AutoProcessSummary
 )
 
+load_dotenv() # Load environment variables from .env file first
+
 # --- Constants ---
 MINIMUM_PAYOUT_THRESHOLD = 5.00
 # ---------------
+
+# --- Path Setup ---
+BASE_DIR = pathlib.Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+# ------------------
 
 Base.metadata.create_all(bind=engine)
 
@@ -46,8 +55,12 @@ MOCK_OFFERS = [
 
 app = FastAPI()
 
-# Mount the static directory
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Mount the static directory using absolute path
+# Ensure the directory exists before mounting
+if not STATIC_DIR.is_dir():
+    print(f"Warning: Static directory not found at {STATIC_DIR}. Static files may not serve correctly.")
+    # Optionally, create it: STATIC_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 def get_db():
     db = SessionLocal()
@@ -78,56 +91,44 @@ def get_reason_stats(db: Session = Depends(get_db)):
     return [ReasonStats(reason_category=reason, count=count) for reason, count in results]
 
 # Endpoint to serve the dashboard HTML
-@app.get("/dashboard", response_class=HTMLResponse)
+@app.get("/dashboard", response_class=FileResponse)
 async def get_dashboard():
-    # Simple approach: Read the HTML file content
-    # Note: For more complex scenarios or templating, consider Jinja2Templates
-    try:
-        with open("static/index.html", "r") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content, status_code=200)
-    except FileNotFoundError:
+    dashboard_path = STATIC_DIR / "index.html"
+    if not dashboard_path.is_file():
         return HTMLResponse(content="Dashboard file not found.", status_code=404)
+    return FileResponse(dashboard_path)
 
 # Endpoint to serve the buyer dashboard HTML
-@app.get("/buyer-dashboard", response_class=HTMLResponse)
+@app.get("/buyer-dashboard", response_class=FileResponse)
 async def get_buyer_dashboard():
-    try:
-        with open("static/buyer.html", "r") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content, status_code=200)
-    except FileNotFoundError:
+    dashboard_path = STATIC_DIR / "buyer.html"
+    if not dashboard_path.is_file():
         return HTMLResponse(content="Buyer dashboard file not found.", status_code=404)
+    return FileResponse(dashboard_path)
 
 # Endpoint to serve the offer feed HTML
-@app.get("/offer-feed", response_class=HTMLResponse)
+@app.get("/offer-feed", response_class=FileResponse)
 async def get_offer_feed_page():
-    try:
-        with open("static/offer.html", "r") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content, status_code=200)
-    except FileNotFoundError:
+    dashboard_path = STATIC_DIR / "offer.html"
+    if not dashboard_path.is_file():
         return HTMLResponse(content="Offer feed file not found.", status_code=404)
+    return FileResponse(dashboard_path)
 
 # Endpoint to serve the suggestion success dashboard HTML
-@app.get("/suggestion-dashboard", response_class=HTMLResponse)
+@app.get("/suggestion-dashboard", response_class=FileResponse)
 async def get_suggestion_dashboard_page():
-    try:
-        with open("static/suggestion.html", "r") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content, status_code=200)
-    except FileNotFoundError:
+    dashboard_path = STATIC_DIR / "suggestion.html"
+    if not dashboard_path.is_file():
         return HTMLResponse(content="Suggestion dashboard file not found.", status_code=404)
+    return FileResponse(dashboard_path)
 
 # Endpoint to serve the wallet page HTML
-@app.get("/wallet", response_class=HTMLResponse)
+@app.get("/wallet", response_class=FileResponse)
 async def get_wallet_page():
-    try:
-        with open("static/wallet.html", "r") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content, status_code=200)
-    except FileNotFoundError:
+    dashboard_path = STATIC_DIR / "wallet.html"
+    if not dashboard_path.is_file():
         return HTMLResponse(content="Wallet page file not found.", status_code=404)
+    return FileResponse(dashboard_path)
 
 # Endpoint for agent training log export
 @app.get("/export/agent-training-log", response_model=List[AgentTrainingExample])

@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: tavren-trust-signal
+    env: python
+    rootDir: tavren-backend # Specify the backend directory
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11 # Or your preferred Python version
+      - key: DATABASE_URL # Example if using Render Postgres (recommended)
+        fromDatabase:
+          name: tavren-db # Name of your Render database service
+          property: connectionString
+      # - key: DATABASE_URL # Use this if sticking with SQLite (ensure path is correct)
+      #   value: "sqlite:///var/data/tavren_prod.db" # Render persistent disk path
+
+# Optional: Add a database service if you don't have one
+# databases:
+#   - name: tavren-db
+#     databaseName: tavren_trust_signal_prod
+#     plan: free # Or your desired plan
+#     region: oregon # Or your preferred region 
