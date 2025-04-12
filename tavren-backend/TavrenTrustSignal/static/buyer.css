@@ -1,0 +1,28 @@
+body {
+    font-family: sans-serif;
+}
+
+h1 {
+    text-align: center;
+    margin: 20px 0;
+}
+
+/* Add specific buyer dashboard styles here if needed */
+
+/* Styles for Trust Score List */
+#trustScoresList ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+}
+
+#trustScoresList li {
+    margin-bottom: 5px;
+    font-size: 1.1em;
+}
+
+.risky-flag {
+    color: red;
+    font-weight: bold;
+    margin-left: 10px;
+} 

@@ -1,0 +1,175 @@
+body {
+    font-family: sans-serif;
+    padding: 20px;
+    background-color: #f9f9f9;
+    color: #333;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #444;
+}
+
+#userInputSection {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+#userInputSection label {
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+#userInputSection input {
+    padding: 8px;
+    margin-right: 10px;
+    min-width: 150px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#userInputSection button {
+    padding: 8px 15px;
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+#walletInfoContainer {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping */
+    gap: 30px;
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 25px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#balanceSummary,
+#rewardHistory {
+    flex: 1; /* Each takes half the space */
+    min-width: 280px; /* Minimum width before wrapping */
+}
+
+#balanceSummary h2,
+#rewardHistory h2 {
+    margin-top: 0;
+    color: #555;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+#balanceSummary p {
+    font-size: 1.1em;
+    margin-bottom: 12px;
+    color: #444;
+}
+
+#balanceSummary strong {
+    font-weight: bold;
+    color: #28a745; /* Green for earnings */
+}
+
+#balanceSummary .available-balance strong {
+    font-size: 1.2em;
+    color: #0056b3; /* Different color for available */
+}
+
+#rewardHistory ul {
+    list-style: none;
+    padding: 0;
+    max-height: 300px; /* Limit height and add scroll */
+    overflow-y: auto;
+}
+
+#rewardHistory li {
+    padding: 10px 0;
+    border-bottom: 1px dashed #eee;
+    font-size: 0.95em;
+    color: #555;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+#rewardHistory li:last-child {
+    border-bottom: none;
+}
+
+#rewardHistory .offer-id {
+    font-style: italic;
+    color: #777;
+    flex-basis: 60%; /* Allow wrapping below */
+    margin-right: 10px;
+}
+
+#rewardHistory .amount {
+    font-weight: bold;
+    color: #28a745;
+    flex-basis: 30%;
+    text-align: right;
+}
+
+#loadingMessage {
+    text-align: center;
+    font-style: italic;
+    color: #666;
+}
+
+#errorMessage {
+     text-align: center;
+     margin-top: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    #walletInfoContainer {
+        flex-direction: column;
+    }
+     #rewardHistory {
+        margin-top: 20px;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+    }
+}
+
+/* Claim Status Area */
+#claimStatusArea {
+    padding-top: 15px;
+    border-top: 1px dashed #eee;
+    text-align: center; /* Center button/text */
+}
+
+#claimStatusArea p {
+    font-size: 1em;
+    color: #666;
+    margin: 0;
+}
+
+.claim-button {
+    padding: 10px 20px;
+    font-size: 1.1em;
+    font-weight: bold;
+    cursor: pointer;
+    background-color: #28a745; /* Green */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin-top: 5px;
+}
+
+.claim-button:disabled {
+     background-color: #ccc;
+     cursor: not-allowed;
+} 

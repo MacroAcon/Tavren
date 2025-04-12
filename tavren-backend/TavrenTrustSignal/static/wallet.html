@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tavren Wallet</title>
+    <link rel="stylesheet" href="/static/wallet.css">
+</head>
+<body>
+    <h1>My Tavren Wallet</h1>
+
+    <div id="userInputSection">
+        <label for="userIdInput">Enter User ID:</label>
+        <input type="text" id="userIdInput" placeholder="e.g., user123 or 42">
+        <button id="fetchWalletBtn">View Wallet</button>
+    </div>
+
+    <div id="walletInfoContainer" style="display: none;">
+        <div id="balanceSummary">
+            <h2>Balance Summary</h2>
+            <p>Total Earned: <strong id="totalEarned">$0.00</strong></p>
+            <p>Total Claimed: <strong id="totalClaimed">$0.00</strong></p>
+            <p class="available-balance">Available Balance: <strong id="availableBalance">$0.00</strong></p>
+            <div id="claimStatusArea" style="margin-top: 15px;">
+                <!-- Claim status/button will be loaded here -->
+            </div>
+        </div>
+
+        <div id="rewardHistory">
+            <h2>Recent Rewards</h2>
+            <ul id="historyList">
+                <!-- Reward history will be loaded here -->
+                <li>Loading history...</li>
+            </ul>
+        </div>
+    </div>
+
+    <p id="loadingMessage" style="display: none;">Loading wallet information...</p>
+    <p id="errorMessage" style="display: none; color: red;"></p>
+
+    <script src="/static/wallet.js"></script>
+</body>
+</html> 

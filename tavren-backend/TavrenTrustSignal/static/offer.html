@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offer Feed</title>
+    <link rel="stylesheet" href="/static/offer.css">
+</head>
+<body>
+    <h1>Offer Feed</h1>
+
+    <div id="buyerInputSection">
+        <label for="buyerIdInput">Enter Buyer ID:</label>
+        <input type="number" id="buyerIdInput" placeholder="e.g., 42">
+        <button id="fetchOffersBtn">Get Offers</button>
+    </div>
+
+    <div id="offerListContainer">
+        <!-- Offers will be loaded here -->
+        <p id="loadingMessage" style="display: none;">Loading offers...</p>
+        <p id="errorMessage" style="display: none; color: red;"></p>
+        <div id="offerList"></div>
+    </div>
+
+    <script src="/static/offer.js"></script>
+</body>
+</html> 

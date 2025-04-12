@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buyer Trust Dashboard</title>
+    <link rel="stylesheet" href="/static/buyer.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Buyer Rejection Insights</h1>
+
+    <div id="trustScoresList" style="text-align: center; margin-bottom: 20px;">
+        <h2>Trust Scores</h2>
+        <!-- Trust scores will be loaded here by buyer.js -->
+    </div>
+
+    <div style="width: 90%; margin: auto;">
+        <canvas id="buyerReasonChart"></canvas>
+    </div>
+    <script src="/static/buyer.js"></script>
+</body>
+</html> 

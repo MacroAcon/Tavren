@@ -1,0 +1,73 @@
+body {
+    font-family: sans-serif;
+    padding: 20px;
+    background-color: #f4f7f6;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #333;
+}
+
+.dashboard-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    gap: 30px;
+    max-width: 1000px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.chart-container {
+    flex: 1; /* Take up available space */
+    min-width: 300px; /* Minimum width before wrapping */
+    max-width: 400px; /* Limit chart size */
+    margin: 0 auto; /* Center chart if it's alone on a line */
+}
+
+.stats-summary {
+    flex: 1; /* Take up available space */
+    min-width: 250px; /* Minimum width before wrapping */
+    padding-left: 20px; /* Add space if side-by-side */
+    border-left: 1px solid #eee; /* Separator line */
+}
+
+.stats-summary h2 {
+    margin-top: 0;
+    color: #555;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.stats-summary p {
+    font-size: 1.1em;
+    color: #444;
+    margin-bottom: 10px;
+}
+
+.stats-summary strong {
+    color: #007bff; /* Highlight color for stats */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .dashboard-container {
+        flex-direction: column;
+        padding: 15px;
+    }
+    .stats-summary {
+        padding-left: 0;
+        border-left: none;
+        border-top: 1px solid #eee; /* Add separator line on top */
+        margin-top: 20px;
+        padding-top: 20px;
+    }
+    .chart-container {
+        max-width: 100%; /* Allow chart to fill width */
+    }
+} 
