@@ -1,5 +1,5 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import Depends, HTTPException, status, Header, Security
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from passlib.context import CryptContext
@@ -17,6 +17,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+
+# Admin API key security
+admin_api_key_header = APIKeyHeader(name="X-Admin-API-Key", auto_error=False)
 
 # --- Utility Functions --- #
 
@@ -53,6 +56,32 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+# --- Admin API Key Validation --- #
+async def validate_admin_api_key(api_key: str = Security(admin_api_key_header)) -> bool:
+    """
+    Validate the admin API key for protected endpoints.
+    
+    The API key should be set in environment variables and never hardcoded.
+    For production use, consider using a more robust API key management system.
+    """
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin API key is required",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+    
+    # Compare with the admin API key stored in settings/environment variables
+    # This key should be loaded from environment variables, not hardcoded
+    if api_key != settings.ADMIN_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin API key",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+    
+    return True
 
 # --- Dependency --- #
 
@@ -105,12 +134,35 @@ async def login_for_access_token(db: AsyncSession = Depends(get_db), form_data: 
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# TODO: Remove or protect this endpoint in production
+@auth_router.post("/refresh", response_model=Token)
+async def refresh_access_token(current_user: UserInDB = Depends(get_current_user)):
+    """
+    Refresh the access token for the currently authenticated user.
+    
+    This endpoint requires a valid, unexpired access token and returns a new token
+    with an extended expiration time.
+    """
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": current_user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# Protected registration endpoint that requires an admin API key
 @auth_router.post("/register", response_model=UserDisplay, status_code=status.HTTP_201_CREATED)
-async def register_user(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
+async def register_user(
+    user_in: UserCreate, 
+    db: AsyncSession = Depends(get_db),
+    is_admin: bool = Depends(validate_admin_api_key)
+):
     """
-    Register a new user. Should be removed or heavily protected in production.
+    Register a new user. Protected by admin API key requirement.
+    
+    To use this endpoint, include the X-Admin-API-Key header with a valid admin API key.
+    Example: curl -X POST -H "X-Admin-API-Key: your_admin_api_key" -d '{"username":"user", ...}' /api/auth/register
     """
+    # Verify admin access (handled by the dependency)
+    
     # Check if user already exists
     existing_user = await get_user(db, user_in.username)
     if existing_user:

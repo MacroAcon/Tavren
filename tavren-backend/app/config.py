@@ -1,5 +1,7 @@
 import pathlib
 import os
+import logging.config
+import secrets
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # This ensures correct .env loading regardless of where the app is run
@@ -23,14 +25,84 @@ class Settings(BaseSettings):
     STATIC_DIR: pathlib.Path = BASE_DIR / "app" / "static"
 
     # Security settings
-    # IMPORTANT: Generate a strong secret key in production!
-    # Example: openssl rand -hex 32
-    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    # IMPORTANT: JWT_SECRET_KEY MUST be set in environment variables for production!
+    # Example to generate: openssl rand -hex 32
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 # Token expiry time
+    
+    # Admin API key for protected operations like user registration
+    # Generate with: openssl rand -hex 24
+    ADMIN_API_KEY: str
+
+    # Data Packaging settings
+    ENCRYPT_DATA_PACKAGES: bool = True
+    DATA_ENCRYPTION_KEY: str  # Set in environment variables
+    DATA_PACKAGE_TOKEN_EXPIRY_HOURS: int = 24
+    DATA_PACKAGE_STORAGE_PATH: pathlib.Path = BASE_DIR / "data_packages"
+    MAX_PACKAGE_SIZE_MB: int = 50
+    AUDIT_TRAIL_ENABLED: bool = True
+    
+    # Trust Tier thresholds
+    LOW_TRUST_THRESHOLD: float = 0.3  # Below this is low trust
+    HIGH_TRUST_THRESHOLD: float = 0.7  # Above this is high trust
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Secure defaults only for development - must be properly set in production
+        if not self.SECRET_KEY:
+            # Check if we're in production by looking for common environment variables
+            is_production = os.environ.get('ENVIRONMENT') == 'production' or os.environ.get('ENV') == 'production'
+            if is_production:
+                raise ValueError("JWT_SECRET_KEY environment variable is required in production mode")
+            # In development, generate a random key but log a warning
+            self.SECRET_KEY = secrets.token_hex(32)
+            import logging
+            logging.warning(
+                "WARNING: Using a randomly generated SECRET_KEY. "
+                "This is only acceptable for development environments. "
+                "Set JWT_SECRET_KEY environment variable for production."
+            )
+            
+        if not self.DATA_ENCRYPTION_KEY:
+            is_production = os.environ.get('ENVIRONMENT') == 'production' or os.environ.get('ENV') == 'production'
+            if is_production:
+                raise ValueError("DATA_ENCRYPTION_KEY environment variable is required in production mode")
+            # In development, generate a random key but log a warning
+            self.DATA_ENCRYPTION_KEY = secrets.token_hex(16)  # 128 bits
+            import logging
+            logging.warning(
+                "WARNING: Using a randomly generated DATA_ENCRYPTION_KEY. "
+                "This is only acceptable for development environments. "
+                "Set DATA_ENCRYPTION_KEY environment variable for production."
+            )
+            
+        if not self.ADMIN_API_KEY:
+            is_production = os.environ.get('ENVIRONMENT') == 'production' or os.environ.get('ENV') == 'production'
+            if is_production:
+                raise ValueError("ADMIN_API_KEY environment variable is required in production mode")
+            # In development, generate a random key but log a warning
+            self.ADMIN_API_KEY = secrets.token_hex(24)  # 192 bits
+            import logging
+            logging.warning(
+                "WARNING: Using a randomly generated ADMIN_API_KEY. "
+                "This is only acceptable for development environments. "
+                "Set ADMIN_API_KEY environment variable for production to protect admin endpoints."
+            )
+
+    model_config = SettingsConfigDict(
+        env_file=PROJECT_ROOT / '.env',
+        extra='ignore',
+        env_prefix="",
+        env_file_encoding="utf-8"
+    )
 
 # Create a single instance of the settings to be imported elsewhere
 settings = Settings()
+
+def get_settings():
+    """Function to get settings - useful for dependency injection."""
+    return settings
 
 # --- Logging Configuration (Example) ---
 # You can expand this further

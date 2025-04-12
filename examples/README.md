@@ -1,6 +1,51 @@
 # Tavren Examples
 
-This directory contains example implementations and demonstrations of key Tavren concepts and integrations.
+This directory contains example code and demonstrations for various Tavren components and workflows.
+
+## Available Examples
+
+### Agent Communication
+
+Demonstrates the communication between agents using the Agent-to-Agent (A2A) and Meaning Context Protocol (MCP) within Tavren's consent-based data exchange framework.
+
+### Data Packaging
+
+Demonstrates the data packaging layer, which securely prepares user data according to consent permissions and buyer trust tiers.
+
+**Features demonstrated:**
+- Consent verification and validation
+- Multiple anonymization levels based on access requirements
+- Trust tier integration for security adjustments
+- Data schema validation and formatting
+- Time-limited access tokens
+- Audit trail generation
+
+To run the data packaging example:
+
+```bash
+python examples/data_packaging_example.py
+```
+
+Note: This requires a running Tavren backend server.
+
+## Running the Examples
+
+1. Start the Tavren backend server:
+   ```bash
+   cd tavren-backend
+   uvicorn app.main:app --reload
+   ```
+
+2. Run the desired example script:
+   ```bash
+   python examples/data_packaging_example.py
+   ```
+
+## Additional Resources
+
+- See the `tavren-backend/app/services/data_packaging.py` file for the full implementation of the data packaging service
+- See the `tavren-backend/app/routers/data_packaging.py` file for the API endpoints
+- See the `tavren-backend/app/routers/buyer_data.py` file for the buyer-facing API endpoints
 
 ## Contents
 

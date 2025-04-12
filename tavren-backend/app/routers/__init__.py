@@ -1,19 +1,17 @@
-from .static import router as static_router
-from .consent import router as consent_router, dashboard_router as consent_dashboard_router
-from .buyers import buyer_router, offer_router
+from .static import static_router
+from .consent import consent_router
+from .buyers import buyers_router
 from .wallet import reward_router, wallet_router, payout_router
-from .agent import router as agent_router
-from ..auth import auth_router
+from .agent import agent_router
+from .data_packaging import data_packaging_router
 
 __all__ = [
     'static_router',
     'consent_router',
-    'consent_dashboard_router',
-    'buyer_router',
-    'offer_router',
+    'buyers_router',
     'reward_router',
     'wallet_router',
     'payout_router',
     'agent_router',
-    'auth_router'
+    'data_packaging_router',
 ]

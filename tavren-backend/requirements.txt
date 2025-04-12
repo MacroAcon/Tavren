@@ -8,6 +8,7 @@ greenlet==3.1.1 # Often needed by SQLAlchemy
 requests # For the payout processor script
 python-multipart # Required for OAuth2 password flow form data
 slowapi # For rate limiting
+cryptography==42.0.0 # For encryption/decryption of data packages
 
 # Testing dependencies
 pytest

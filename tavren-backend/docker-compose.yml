@@ -7,17 +7,21 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      POSTGRES_USER: tavren_user
-      POSTGRES_PASSWORD: tavren_password
+      POSTGRES_USER: ${POSTGRES_USER_SECRET:-tavren_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_SECRET:-tavren_password}
       POSTGRES_DB: tavren_db
-    ports:
-      # Expose PostgreSQL port only to the host for debugging if needed
-      # Be cautious about exposing DB ports in production
-      - "5433:5432" # Map container port 5432 to host port 5433 to avoid conflicts
+    # SECURITY: Database ports are not exposed to the host to prevent unauthorized access
+    # For local development, use one of these alternatives instead of direct port exposure:
+    # 1. Access the database through the backend application API
+    # 2. Use docker exec to connect to the database container directly:
+    #    docker exec -it tavren_db psql -U ${POSTGRES_USER_SECRET} tavren_db
+    # 3. If direct access is absolutely necessary, temporarily uncomment this and use on local dev only:
+    # ports:
+    #   - "127.0.0.1:5433:5432"  # Restrict to localhost connections
     networks:
       - tavren_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tavren_user -d tavren_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_SECRET:-tavren_user} -d tavren_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,10 +39,15 @@ services:
       - "8000:8000"
     environment:
       # Use the service name 'db' as the host for the database connection
-      DATABASE_URL: postgresql+asyncpg://tavren_user:tavren_password@db:5432/tavren_db
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER_SECRET:-tavren_user}:${POSTGRES_PASSWORD_SECRET:-tavren_password}@db:5432/tavren_db
       LOG_LEVEL: DEBUG # Use DEBUG level for development
       MINIMUM_PAYOUT_THRESHOLD: ${MINIMUM_PAYOUT_THRESHOLD:-5.00} # Use host env var or default
       STATIC_DIR: /app/app/static
+      # Security settings
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       # Variables needed for automatic payout checks (adjust as needed)
       AUTO_PAYOUT_MIN_TRUST_SCORE: ${AUTO_PAYOUT_MIN_TRUST_SCORE:-50.0}
       AUTO_PAYOUT_MAX_AMOUNT: ${AUTO_PAYOUT_MAX_AMOUNT:-100.0}
@@ -53,4 +62,26 @@ volumes:
 
 networks:
   tavren_network:
-    driver: bridge 
+    driver: bridge
+
+# Instructions for using environment variables:
+# 1. Create a .env file in the same directory as this docker-compose.yml with the following variables:
+#    POSTGRES_USER_SECRET=your_secure_username
+#    POSTGRES_PASSWORD_SECRET=your_secure_password
+#    JWT_SECRET_KEY=your_jwt_secret (run `openssl rand -hex 32` to generate)
+#    DATA_ENCRYPTION_KEY=your_encryption_key (run `openssl rand -hex 16` to generate)
+#    ADMIN_API_KEY=your_admin_api_key (run `openssl rand -hex 24` to generate)
+#    ACCESS_TOKEN_EXPIRE_MINUTES=30 (adjust as needed for security vs. user experience)
+# 
+# 2. For production environments, consider using Docker secrets instead:
+#    secrets:
+#      postgres_user:
+#        file: ./secrets/postgres_user.txt
+#      postgres_password:
+#        file: ./secrets/postgres_password.txt
+#    
+#    And then reference them in the service:
+#    db:
+#      environment:
+#        POSTGRES_USER_FILE: /run/secrets/postgres_user
+#        POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password 

@@ -22,8 +22,11 @@ from .routers import (
     reward_router,
     wallet_router,
     payout_router,
-    auth_router
+    auth_router,
+    data_packaging_router
 )
+
+from .routers.buyer_data import buyer_data_router
 
 # Import exception handlers
 from .exceptions import register_exception_handlers
@@ -81,9 +84,9 @@ app.include_router(static_router)
 app.include_router(consent_router)
 app.include_router(consent_dashboard_router)
 
-# Buyer and offer routes
+# Buyer routes
 app.include_router(buyer_router)
-app.include_router(offer_router) 
+app.include_router(buyer_data_router)
 
 # Wallet and payout routes
 app.include_router(reward_router)
@@ -92,6 +95,9 @@ app.include_router(payout_router)
 
 # Agent communication routes
 app.include_router(agent_router)
+
+# Data packaging routes
+app.include_router(data_packaging_router)
 
 # Authentication router
 app.include_router(auth_router)
