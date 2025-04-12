@@ -11,7 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.services.embedding_service import EmbeddingService, get_embedding_service
 from app.auth import get_current_active_user
-from app.schemas import UserDisplay, EmbeddingRequest, EmbeddingResponse, VectorSearchRequest, VectorSearchResponse, IndexPackageRequest, IndexPackageResponse, RAGRequest, RAGResponse
+from app.schemas import (
+    UserDisplay, EmbeddingRequest, EmbeddingResponse, 
+    VectorSearchRequest, VectorSearchResponse, 
+    IndexPackageRequest, IndexPackageResponse, 
+    RAGRequest, RAGResponse,
+    HybridSearchRequest, HybridSearchResponse,
+    CrossPackageContextRequest, CrossPackageContextResponse,
+    QueryExpansionRequest, QueryExpansionResponse,
+    FacetedSearchRequest, FacetedSearchResponse
+)
 
 # Set up logging
 log = logging.getLogger("app")
@@ -230,4 +239,152 @@ async def get_package_embedding(
         raise
     except Exception as e:
         log.error(f"Error retrieving package embedding: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving package embedding: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Error retrieving package embedding: {str(e)}")
+
+@embedding_router.post("/hybrid-search", response_model=HybridSearchResponse)
+async def hybrid_search(
+    request: HybridSearchRequest,
+    db: AsyncSession = Depends(get_db),
+    embedding_service: EmbeddingService = Depends(get_embedding_service),
+    current_user: UserDisplay = Depends(get_current_active_user)
+):
+    """
+    Perform hybrid search combining semantic and keyword matching.
+    
+    This endpoint performs a combined search that balances semantic understanding
+    with keyword precision for better results.
+    
+    Returns weighted results from both search approaches.
+    """
+    try:
+        log.info(f"Performing hybrid search for query: {request.query_text[:50]}...")
+        
+        # Perform the hybrid search
+        search_results = await embedding_service.hybrid_search(
+            query_text=request.query_text,
+            semantic_weight=request.semantic_weight,
+            keyword_weight=request.keyword_weight,
+            embedding_type=request.embedding_type,
+            top_k=request.top_k,
+            use_nvidia_api=request.use_nvidia_api,
+            filter_metadata=request.filter_metadata
+        )
+        
+        log.info(f"Hybrid search found {len(search_results)} results")
+        return {
+            "query": request.query_text,
+            "results": search_results,
+            "count": len(search_results),
+            "semantic_weight": request.semantic_weight,
+            "keyword_weight": request.keyword_weight,
+            "search_type": "hybrid"
+        }
+        
+    except Exception as e:
+        log.error(f"Error performing hybrid search: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error performing hybrid search: {str(e)}")
+
+@embedding_router.post("/cross-package-context", response_model=CrossPackageContextResponse)
+async def cross_package_context(
+    request: CrossPackageContextRequest,
+    db: AsyncSession = Depends(get_db),
+    embedding_service: EmbeddingService = Depends(get_embedding_service),
+    current_user: UserDisplay = Depends(get_current_active_user)
+):
+    """
+    Assemble context from multiple data packages for complex queries.
+    
+    This endpoint provides richer context by retrieving information
+    from different data packages and combining them based on relevance.
+    
+    Returns assembled context with package organization.
+    """
+    try:
+        log.info(f"Assembling cross-package context for query: {request.query_text[:50]}...")
+        
+        # Assemble cross-package context
+        context_result = await embedding_service.assemble_cross_package_context(
+            query_text=request.query_text,
+            max_packages=request.max_packages,
+            max_items_per_package=request.max_items_per_package,
+            max_tokens=request.max_tokens,
+            use_hybrid_search=request.use_hybrid_search,
+            semantic_weight=request.semantic_weight,
+            keyword_weight=request.keyword_weight
+        )
+        
+        log.info(f"Cross-package context assembled with {context_result['package_count']} packages")
+        return context_result
+        
+    except Exception as e:
+        log.error(f"Error assembling cross-package context: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error assembling cross-package context: {str(e)}")
+
+@embedding_router.post("/query-expansion", response_model=QueryExpansionResponse)
+async def query_expansion_search(
+    request: QueryExpansionRequest,
+    db: AsyncSession = Depends(get_db),
+    embedding_service: EmbeddingService = Depends(get_embedding_service),
+    current_user: UserDisplay = Depends(get_current_active_user)
+):
+    """
+    Enhance search by automatically expanding the query with related terms.
+    
+    This endpoint improves recall for queries by generating alternative
+    phrasings and combining the results.
+    
+    Returns results from the expanded search with query information.
+    """
+    try:
+        log.info(f"Performing query expansion search for: {request.query_text[:50]}...")
+        
+        # Perform query expansion search
+        search_results = await embedding_service.query_expansion_search(
+            query_text=request.query_text,
+            top_k=request.top_k,
+            use_hybrid_search=request.use_hybrid_search,
+            max_expansions=request.max_expansions,
+            expansion_model=request.expansion_model
+        )
+        
+        log.info(f"Query expansion search found {search_results['result_count']} results with {len(search_results['expanded_queries'])} query variations")
+        return search_results
+        
+    except Exception as e:
+        log.error(f"Error performing query expansion search: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error performing query expansion search: {str(e)}")
+
+@embedding_router.post("/faceted-search", response_model=FacetedSearchResponse)
+async def faceted_search(
+    request: FacetedSearchRequest,
+    db: AsyncSession = Depends(get_db),
+    embedding_service: EmbeddingService = Depends(get_embedding_service),
+    current_user: UserDisplay = Depends(get_current_active_user)
+):
+    """
+    Perform faceted search that combines semantic search with metadata filtering.
+    
+    This endpoint allows structured information retrieval by filtering
+    and grouping results based on metadata facets while maintaining
+    semantic relevance.
+    
+    Returns results organized by facets with relevance scores.
+    """
+    try:
+        log.info(f"Performing faceted search for query: {request.query_text[:50]}...")
+        
+        # Perform faceted search
+        search_results = await embedding_service.faceted_search(
+            query_text=request.query_text,
+            facets=request.facets,
+            facet_weights=request.facet_weights,
+            use_hybrid_search=request.use_hybrid_search,
+            top_k=request.top_k
+        )
+        
+        log.info(f"Faceted search found {search_results['result_count']} results across {len(request.facets)} facet categories")
+        return search_results
+        
+    except Exception as e:
+        log.error(f"Error performing faceted search: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error performing faceted search: {str(e)}") 

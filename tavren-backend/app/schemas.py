@@ -359,3 +359,131 @@ class RAGGenerationResponse(BaseModel):
     model_used: str
     usage: Dict[str, Any]
     timestamp: float
+
+# Schema for hybrid search requests
+class HybridSearchRequest(BaseModel):
+    query_text: str
+    semantic_weight: Optional[float] = 0.7
+    keyword_weight: Optional[float] = 0.3
+    embedding_type: Optional[str] = None
+    top_k: Optional[int] = None
+    use_nvidia_api: bool = True
+    filter_metadata: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "query_text": "User health data showing abnormal heart rate",
+                "semantic_weight": 0.7,
+                "keyword_weight": 0.3,
+                "top_k": 5,
+                "filter_metadata": {"data_type": "health"}
+            }
+        }
+
+# Schema for hybrid search responses
+class HybridSearchResponse(BaseModel):
+    query: str
+    results: List[Dict[str, Any]]
+    count: int
+    semantic_weight: float
+    keyword_weight: float
+    search_type: str = "hybrid"
+
+# Schema for cross-package context assembly requests
+class CrossPackageContextRequest(BaseModel):
+    query_text: str
+    max_packages: Optional[int] = 5
+    max_items_per_package: Optional[int] = 3
+    max_tokens: Optional[int] = 2000
+    use_hybrid_search: bool = True
+    semantic_weight: Optional[float] = 0.7
+    keyword_weight: Optional[float] = 0.3
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "query_text": "How does the user's exercise impact their sleep patterns?",
+                "max_packages": 3,
+                "max_items_per_package": 3,
+                "max_tokens": 2000,
+                "use_hybrid_search": True
+            }
+        }
+
+# Schema for cross-package context assembly responses
+class CrossPackageContextResponse(BaseModel):
+    query: str
+    context: str
+    package_count: int
+    item_count: int
+    token_count: int
+    latency_ms: float
+    packages: List[Dict[str, Any]]
+    search_type: str
+    timestamp: str
+
+# Schema for query expansion search requests
+class QueryExpansionRequest(BaseModel):
+    query_text: str
+    top_k: Optional[int] = None
+    use_hybrid_search: bool = True
+    max_expansions: Optional[int] = 3
+    expansion_model: Optional[str] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "query_text": "How much did the user exercise last month?",
+                "top_k": 5,
+                "use_hybrid_search": True,
+                "max_expansions": 3
+            }
+        }
+
+# Schema for query expansion search responses
+class QueryExpansionResponse(BaseModel):
+    original_query: str
+    expanded_queries: List[str]
+    results: List[Dict[str, Any]]
+    result_count: int
+    latency_ms: float
+    search_type: str = "query_expansion"
+    timestamp: str
+
+# Schema for faceted search requests
+class FacetedSearchRequest(BaseModel):
+    query_text: str
+    facets: Dict[str, List[str]]
+    facet_weights: Optional[Dict[str, float]] = None
+    use_hybrid_search: bool = True
+    top_k: Optional[int] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "query_text": "User fitness activity data",
+                "facets": {
+                    "data_type": ["fitness", "health"],
+                    "activity_type": ["running", "cycling"]
+                },
+                "facet_weights": {
+                    "data_type": 0.6,
+                    "activity_type": 0.4
+                },
+                "top_k": 10
+            }
+        }
+
+# Schema for faceted search responses
+class FacetedSearchResponse(BaseModel):
+    query: str
+    facets: Dict[str, List[str]]
+    facet_weights: Dict[str, float]
+    results: List[Dict[str, Any]]
+    facet_groups: Dict[str, Dict[str, List[Dict[str, Any]]]]
+    result_count: int
+    latency_ms: float
+    search_type: str = "faceted"
+    use_hybrid_search: bool
+    timestamp: str
