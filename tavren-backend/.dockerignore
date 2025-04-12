@@ -1,0 +1,32 @@
+**/__pycache__
+*.py[cod]
+*$py.class
+
+# Venv
+.venv
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+.env.*
+
+# Databases
+*.db
+*.sqlite3
+
+# Git
+.git
+.gitignore
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*
+
+# IDE / Editor specific
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace 

@@ -1,6 +1,6 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, Float
+from sqlalchemy import Column, String, Integer, DateTime, Text, Float, Boolean
 from sqlalchemy.sql import func
-from database import Base
+from .database import Base
 
 class ConsentEvent(Base):
     __tablename__ = "consent_events"
@@ -12,6 +12,7 @@ class ConsentEvent(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     user_reason = Column(Text, nullable=True)
     reason_category = Column(String(32), nullable=True)
+    paid_at = Column(DateTime(timezone=True), nullable=True) # Timestamp for processing
 
 class Reward(Base):
     __tablename__ = "rewards"
@@ -31,3 +32,12 @@ class PayoutRequest(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String, default="pending", index=True) # e.g., pending, paid, failed
     paid_at = Column(DateTime(timezone=True), nullable=True) # Timestamp for processing
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    is_active = Column(Boolean, default=True)

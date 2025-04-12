@@ -105,3 +105,34 @@ class AutoProcessSummary(BaseModel):
 
     class Config:
         orm_mode = True
+
+# --- Authentication Schemas ---
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+class UserBase(BaseModel):
+    username: str
+    email: Optional[str] = None
+
+class UserCreate(UserBase):
+    password: str
+
+class UserInDB(UserBase):
+    id: int
+    hashed_password: str
+    is_active: bool
+
+    class Config:
+        orm_mode = True
+
+class UserDisplay(UserBase): # Schema for returning user info safely
+    id: int
+    is_active: bool
+
+    class Config:
+        orm_mode = True

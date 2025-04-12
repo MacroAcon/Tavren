@@ -1,20 +1,35 @@
-import os
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker, declarative_base
+# Import the settings instance
+from .config import settings
 
-load_dotenv()
-
-# Default to SQLite for local dev, use DATABASE_URL env var if set
-# The path './tavren_dev.db' assumes the app runs from 'tavren-backend/'
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tavren_dev.db")
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    # Add check_same_thread only if using SQLite
-    connect_args={"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
+# Async engine setup
+# Note: asyncpg requires the database URL scheme to be postgresql+asyncpg
+# We might need to adjust the settings.DATABASE_URL format if it's not already correct.
+# Assuming settings.DATABASE_URL is like "postgresql+asyncpg://user:password@host/db"
+async_engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=True, # Optional: for debugging SQL statements
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Async session setup
+AsyncSessionLocal = sessionmaker(
+    bind=async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
 
 Base = declarative_base()
+
+async def get_db() -> AsyncSession:
+    """
+    Asynchronous database dependency that creates a new SQLAlchemy AsyncSession
+    for each request and ensures it is closed when the request is complete.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close() # Ensure session is closed asynchronously

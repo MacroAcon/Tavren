@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: tavren_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_USER: tavren_user
+      POSTGRES_PASSWORD: tavren_password
+      POSTGRES_DB: tavren_db
+    ports:
+      # Expose PostgreSQL port only to the host for debugging if needed
+      # Be cautious about exposing DB ports in production
+      - "5433:5432" # Map container port 5432 to host port 5433 to avoid conflicts
+    networks:
+      - tavren_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tavren_user -d tavren_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tavren_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      # Mount the app directory for live reloading during development
+      - ./app:/app/app
+    ports:
+      - "8000:8000"
+    environment:
+      # Use the service name 'db' as the host for the database connection
+      DATABASE_URL: postgresql+asyncpg://tavren_user:tavren_password@db:5432/tavren_db
+      LOG_LEVEL: DEBUG # Use DEBUG level for development
+      MINIMUM_PAYOUT_THRESHOLD: ${MINIMUM_PAYOUT_THRESHOLD:-5.00} # Use host env var or default
+      STATIC_DIR: /app/app/static
+      # Variables needed for automatic payout checks (adjust as needed)
+      AUTO_PAYOUT_MIN_TRUST_SCORE: ${AUTO_PAYOUT_MIN_TRUST_SCORE:-50.0}
+      AUTO_PAYOUT_MAX_AMOUNT: ${AUTO_PAYOUT_MAX_AMOUNT:-100.0}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tavren_network
+
+volumes:
+  postgres_data:
+
+networks:
+  tavren_network:
+    driver: bridge 

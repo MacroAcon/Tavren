@@ -1,0 +1,85 @@
+name: Tavren Backend CI
+
+on:
+  push:
+    branches: [ "main", "develop" ] # Adjust branches as needed
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11' # Match Python version in Dockerfile
+
+    # Optional: Cache pip dependencies if needed for workflow steps outside Docker
+    # - name: Cache pip dependencies
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: ~/.cache/pip
+    #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-pip-
+
+    - name: Build Docker image
+      run: docker build -t tavren-backend-ci -f Dockerfile .
+
+    - name: Set up Docker Compose
+      run: docker-compose -f docker-compose.yml up -d db # Start only the DB service in detached mode
+
+    - name: Wait for PostgreSQL to be healthy
+      # This uses the healthcheck defined in docker-compose.yml
+      # Loop until the db service is healthy or timeout
+      run: |
+        echo "Waiting for PostgreSQL to start..."
+        counter=0
+        until [ "$(docker inspect -f '{{.State.Health.Status}}' tavren_db)" == "healthy" ]; do
+          sleep 5
+          counter=$((counter+5))
+          if [ $counter -ge 60 ]; then
+            echo "PostgreSQL did not become healthy within 60 seconds."
+            docker-compose logs db # Print DB logs for debugging
+            exit 1
+          fi
+          echo "Still waiting... ($counter seconds)"
+        done
+        echo "PostgreSQL is healthy!"
+
+    - name: Run Tests with Pytest
+      # Run pytest inside a new container using the built image and link it to the DB
+      # Override the entrypoint/command to run pytest
+      # Pass the DB URL for testing (using the service name 'db')
+      run: |
+        docker run --rm \
+          --network=tavren-backend_tavren_network \
+          -e DATABASE_URL="postgresql+asyncpg://tavren_user:tavren_password@db:5432/tavren_db_test" \
+          -e LOG_LEVEL="INFO" \
+          -e MINIMUM_PAYOUT_THRESHOLD="5.00" \
+          -e STATIC_DIR="/app/app/static" \
+          -e AUTO_PAYOUT_MIN_TRUST_SCORE="50.0" \
+          -e AUTO_PAYOUT_MAX_AMOUNT="100.0" \
+          -v $(pwd)/app:/app/app \
+          -v $(pwd)/tests:/app/tests \
+          tavren-backend-ci \
+          pytest tests
+
+    - name: Run Linter with Ruff
+      # Run ruff inside a new container using the built image
+      run: |
+        docker run --rm \
+          -v $(pwd)/app:/app/app \
+          -v $(pwd)/tests:/app/tests \
+          tavren-backend-ci \
+          ruff check /app/app /app/tests
+
+    # Cleanup Docker Compose after tests
+    - name: Stop Docker Compose services
+      if: always() # Ensure cleanup runs even if previous steps fail
+      run: docker-compose down 
