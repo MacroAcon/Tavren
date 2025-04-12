@@ -3,7 +3,7 @@ import os
 import logging.config
 import secrets
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from typing import Optional, List
 
 # This ensures correct .env loading regardless of where the app is run
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     CACHE_MAX_SIZE: int = 1000  # Maximum number of items in memory cache
     EMBEDDING_CACHE_TTL: int = 86400  # TTL for embeddings (24 hours)
     SEARCH_CACHE_TTL: int = 1800  # TTL for search results (30 minutes)
+    
+    # Evaluation settings
+    ENABLED_METRICS: List[str] = ["mrr", "precision", "recall", "latency", "user_rating"]
+    DEFAULT_AB_TEST_VARIANTS: int = 2  # Default number of A/B test variants
+    MIN_FEEDBACK_SAMPLES: int = 100  # Minimum samples before using feedback for tuning
+    EVALUATION_SAMPLING_RATE: float = 1.0  # Rate at which to sample queries for evaluation (1.0 = all)
+    LOG_QUERY_TEXT: bool = True  # Whether to log full query text (may contain sensitive data)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

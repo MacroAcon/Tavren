@@ -8,9 +8,10 @@ import json
 import numpy as np
 import time
 import hashlib
+import re
 from typing import Dict, Any, List, Optional, Tuple, Union
 from fastapi import Depends
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, desc, func, or_, and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sentence_transformers import SentenceTransformer
 import uuid
@@ -38,7 +39,8 @@ if settings.DATABASE_URL.startswith('postgresql'):
     from pgvector.sqlalchemy import Vector
     from sqlalchemy.sql.expression import cast
     from sqlalchemy import Float as SqlFloat
-    from sqlalchemy.dialects.postgresql import ARRAY
+    from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+    from sqlalchemy.dialects.postgresql.operators import custom_op
 
 class EmbeddingService:
     """Service for managing vector embeddings and semantic search"""
@@ -64,6 +66,12 @@ class EmbeddingService:
         
         # Local embedding model for smaller operations or fallback
         self._local_model = None
+        
+        # Hybrid search configuration
+        self.hybrid_search_weight_semantic = 0.7  # Weight for semantic search (0-1)
+        self.hybrid_search_weight_keyword = 0.3   # Weight for keyword search (0-1)
+        self.hybrid_search_boost_exact_match = 1.2  # Boost factor for exact matches
+        self.cross_package_max_items = 20  # Max items to include in cross-package context
         
         log.info(f"Embedding Service initialized with dimension {self.vector_dimension} and PostgreSQL support: {self.is_postgres}")
     
@@ -247,7 +255,11 @@ class EmbeddingService:
         embedding_type: Optional[str] = None,
         top_k: Optional[int] = None,
         use_nvidia_api: bool = True,
-        filter_metadata: Optional[Dict[str, Any]] = None
+        filter_metadata: Optional[Dict[str, Any]] = None,
+        track_metrics: bool = True,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        evaluation_service = None
     ) -> List[Dict[str, Any]]:
         """
         Perform vector similarity search using query text.
@@ -258,11 +270,16 @@ class EmbeddingService:
             top_k: Number of results to return (default from settings)
             use_nvidia_api: Whether to use Nvidia API for encoding
             filter_metadata: Optional metadata filters
+            track_metrics: Whether to track performance metrics
+            session_id: Optional session ID for tracking
+            user_id: Optional user ID for tracking
+            evaluation_service: Optional evaluation service instance
             
         Returns:
             List of results with similarity scores
         """
         try:
+            start_time = time.time()
             top_k = top_k or self.vector_search_top_k
             
             # Generate a cache key for this search
@@ -285,6 +302,25 @@ class EmbeddingService:
             cached_results = await get_cached_vector_search(query_hash)
             if cached_results is not None:
                 log.info(f"Vector search cache hit for query: {query_text[:50]}...")
+                
+                # Even for cache hits, track metrics if requested
+                if track_metrics and evaluation_service:
+                    end_time = time.time()
+                    latency_ms = (end_time - start_time) * 1000
+                    
+                    # Add cache hit to metadata
+                    metadata = {"cache_hit": True, "query_hash": query_hash}
+                    
+                    # Log metrics with evaluation service
+                    await evaluation_service.log_retrieval_metrics(
+                        query_text=query_text,
+                        results=cached_results,
+                        latency_ms=latency_ms,
+                        user_id=user_id,
+                        session_id=session_id,
+                        metadata=metadata
+                    )
+                    
                 return cached_results
             
             # Generate embedding for query text
@@ -362,15 +398,326 @@ class EmbeddingService:
                 # Sort by similarity and take top_k
                 results = sorted(results, key=lambda x: x["similarity"], reverse=True)[:top_k]
             
-            # Cache the results
+            # Calculate query latency
+            end_time = time.time()
+            latency_ms = (end_time - start_time) * 1000
+            
+            # Track metrics if requested
+            if track_metrics and evaluation_service:
+                # Prepare metadata
+                metadata = {
+                    "cache_hit": False,
+                    "query_hash": query_hash,
+                    "embedding_type": embedding_type,
+                    "use_nvidia_api": use_nvidia_api,
+                    "db_type": "postgres" if self.is_postgres else "sqlite",
+                    "filter_metadata": filter_metadata
+                }
+                
+                # Log metrics with evaluation service
+                await evaluation_service.log_retrieval_metrics(
+                    query_text=query_text,
+                    results=results,
+                    latency_ms=latency_ms,
+                    user_id=user_id,
+                    session_id=session_id,
+                    metadata=metadata
+                )
+            
+            # Cache the results for future queries
             await cache_vector_search(query_hash, results, settings.SEARCH_CACHE_TTL)
             
-            log.info(f"Vector search completed with {len(results)} results")
+            log.info(f"Vector search completed with {len(results)} results in {latency_ms:.2f}ms")
             return results
         
         except Exception as e:
             log.error(f"Error performing vector search: {str(e)}", exc_info=True)
             raise Exception(f"Failed to perform vector search: {str(e)}")
+    
+    async def hybrid_search(
+        self,
+        query_text: str,
+        semantic_weight: Optional[float] = None,
+        keyword_weight: Optional[float] = None,
+        top_k: Optional[int] = None,
+        embedding_type: Optional[str] = None,
+        use_nvidia_api: bool = True,
+        filter_metadata: Optional[Dict[str, Any]] = None,
+        track_metrics: bool = True,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        evaluation_service = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Perform hybrid search combining vector similarity and keyword matching.
+        
+        Args:
+            query_text: Text to search for
+            semantic_weight: Weight for semantic search results (0-1)
+            keyword_weight: Weight for keyword search results (0-1)
+            top_k: Number of results to return
+            embedding_type: Optional filter for embedding type
+            use_nvidia_api: Whether to use Nvidia API for encoding
+            filter_metadata: Optional metadata filters
+            track_metrics: Whether to track performance metrics
+            session_id: Optional session ID for tracking
+            user_id: Optional user ID for tracking
+            evaluation_service: Optional evaluation service instance
+            
+        Returns:
+            List of results with combined similarity scores
+        """
+        try:
+            start_time = time.time()
+            top_k = top_k or self.vector_search_top_k
+            
+            # Use provided weights or defaults
+            semantic_weight = semantic_weight or self.hybrid_search_weight_semantic
+            keyword_weight = keyword_weight or self.hybrid_search_weight_keyword
+            
+            # Normalize weights to sum to 1.0
+            total_weight = semantic_weight + keyword_weight
+            if total_weight != 1.0 and total_weight > 0:
+                semantic_weight /= total_weight
+                keyword_weight /= total_weight
+            
+            # Generate a cache key for this search
+            query_params = {
+                "query": query_text[:100],  # Limit length for cache key
+                "semantic_weight": semantic_weight,
+                "keyword_weight": keyword_weight,
+                "embedding_type": embedding_type,
+                "top_k": top_k,
+                "search_type": "hybrid"
+            }
+            
+            if filter_metadata:
+                # Sort to ensure consistent keys
+                sorted_metadata = dict(sorted(filter_metadata.items()))
+                query_params["filter_metadata"] = json.dumps(sorted_metadata)
+            
+            # Hash the parameters to create a consistent cache key
+            query_hash = hashlib.md5(json.dumps(query_params).encode()).hexdigest()
+            
+            # Try to get from cache
+            cached_results = await get_cached_vector_search(query_hash)
+            if cached_results is not None:
+                log.info(f"Hybrid search cache hit for query: {query_text[:50]}...")
+                
+                # Even for cache hits, track metrics if requested
+                if track_metrics and evaluation_service:
+                    end_time = time.time()
+                    latency_ms = (end_time - start_time) * 1000
+                    
+                    # Add cache hit to metadata
+                    metadata = {
+                        "cache_hit": True, 
+                        "query_hash": query_hash,
+                        "search_type": "hybrid",
+                        "semantic_weight": semantic_weight,
+                        "keyword_weight": keyword_weight
+                    }
+                    
+                    # Log metrics with evaluation service
+                    await evaluation_service.log_retrieval_metrics(
+                        query_text=query_text,
+                        results=cached_results,
+                        latency_ms=latency_ms,
+                        user_id=user_id,
+                        session_id=session_id,
+                        metadata=metadata
+                    )
+                    
+                return cached_results
+            
+            # Perform semantic search (using existing vector_search function)
+            # Get more results than needed to have enough for reranking
+            extended_top_k = min(top_k * 3, 100)  # Get 3x more results but cap at 100
+            
+            semantic_results = await self.vector_search(
+                query_text=query_text,
+                embedding_type=embedding_type,
+                top_k=extended_top_k,
+                use_nvidia_api=use_nvidia_api,
+                filter_metadata=filter_metadata,
+                track_metrics=False  # Don't track metrics for this component search
+            )
+            
+            # Extract keywords from query for keyword search
+            # Simple keyword extraction - extract words longer than 3 chars
+            keywords = [word.lower() for word in re.findall(r'\b\w{3,}\b', query_text)]
+            
+            # Build a map of package_id to record for the semantic results
+            semantic_records = {}
+            for record in semantic_results:
+                record_id = f"{record['id']}"
+                semantic_records[record_id] = {
+                    "id": record["id"],
+                    "package_id": record["package_id"],
+                    "embedding_type": record["embedding_type"],
+                    "text_content": record["text_content"],
+                    "metadata": record["metadata"],
+                    "semantic_score": record["similarity"],
+                    "keyword_score": 0.0,
+                    "combined_score": record["similarity"] * semantic_weight
+                }
+            
+            # Perform keyword search
+            keyword_records = {}
+            
+            if keywords and keyword_weight > 0:
+                # If using PostgreSQL, we can do text search in the database
+                if self.is_postgres:
+                    # Create text search query using PostgreSQL's full-text search or ILIKE
+                    like_conditions = []
+                    for keyword in keywords:
+                        like_conditions.append(
+                            DataPackageEmbedding.text_content.ilike(f"%{keyword}%")
+                        )
+                    
+                    # Build the query
+                    query = select(DataPackageEmbedding)
+                    
+                    # Apply filter conditions
+                    if embedding_type:
+                        query = query.where(DataPackageEmbedding.embedding_type == embedding_type)
+                    
+                    if filter_metadata and self.is_postgres:
+                        for key, value in filter_metadata.items():
+                            # For PostgreSQL JSONB columns
+                            query = query.where(DataPackageEmbedding.metadata[key].astext == str(value))
+                    
+                    # Apply keyword conditions (any keyword can match)
+                    if like_conditions:
+                        query = query.where(or_(*like_conditions))
+                    
+                    # Execute the query
+                    result = await self.db.execute(query.limit(extended_top_k))
+                    keyword_matches = result.scalars().all()
+                    
+                    # Score each result based on keyword matches
+                    for record in keyword_matches:
+                        text_content = record.text_content.lower()
+                        keyword_score = 0.0
+                        
+                        # Calculate keyword score based on matches
+                        exact_matches = 0
+                        partial_matches = 0
+                        
+                        for keyword in keywords:
+                            if f" {keyword} " in f" {text_content} ":  # Check word boundaries
+                                exact_matches += 1
+                            elif keyword in text_content:
+                                partial_matches += 1
+                        
+                        # Calculate normalized score (0-1)
+                        if keywords:
+                            keyword_score = (exact_matches * self.hybrid_search_boost_exact_match + partial_matches) / len(keywords)
+                            keyword_score = min(1.0, keyword_score)  # Cap at 1.0
+                        
+                        record_id = f"{record.id}"
+                        record_data = {
+                            "id": record.id,
+                            "package_id": record.package_id,
+                            "embedding_type": record.embedding_type,
+                            "text_content": record.text_content,
+                            "metadata": record.metadata,
+                            "keyword_score": keyword_score,
+                            "semantic_score": 0.0
+                        }
+                        
+                        keyword_records[record_id] = record_data
+                
+                # For non-PostgreSQL DBs, perform keyword search in Python on semantic results
+                else:
+                    for record in semantic_results:
+                        record_id = f"{record['id']}"
+                        text_content = record["text_content"].lower()
+                        keyword_score = 0.0
+                        
+                        # Calculate keyword score based on matches
+                        exact_matches = 0
+                        partial_matches = 0
+                        
+                        for keyword in keywords:
+                            if f" {keyword} " in f" {text_content} ":  # Check word boundaries
+                                exact_matches += 1
+                            elif keyword in text_content:
+                                partial_matches += 1
+                        
+                        # Calculate normalized score (0-1)
+                        if keywords:
+                            keyword_score = (exact_matches * self.hybrid_search_boost_exact_match + partial_matches) / len(keywords)
+                            keyword_score = min(1.0, keyword_score)  # Cap at 1.0
+                        
+                        # Store the keyword score
+                        if record_id in semantic_records:
+                            semantic_records[record_id]["keyword_score"] = keyword_score
+                            semantic_records[record_id]["combined_score"] += keyword_score * keyword_weight
+            
+            # Merge semantic and keyword results
+            combined_records = {}
+            
+            # Add all semantic records
+            for record_id, record in semantic_records.items():
+                combined_records[record_id] = record
+            
+            # Add or merge keyword records
+            for record_id, record in keyword_records.items():
+                if record_id in combined_records:
+                    # Update keyword score if this record is already in the combined list
+                    combined_records[record_id]["keyword_score"] = record["keyword_score"]
+                    combined_records[record_id]["combined_score"] = (
+                        combined_records[record_id]["semantic_score"] * semantic_weight +
+                        record["keyword_score"] * keyword_weight
+                    )
+                else:
+                    # Add this keyword-only record to the combined list
+                    record["combined_score"] = record["keyword_score"] * keyword_weight
+                    combined_records[record_id] = record
+            
+            # Convert the combined records to a list and sort by combined score
+            results = list(combined_records.values())
+            results.sort(key=lambda x: x["combined_score"], reverse=True)
+            
+            # Trim to the requested top_k
+            results = results[:top_k]
+            
+            # Calculate query latency
+            end_time = time.time()
+            latency_ms = (end_time - start_time) * 1000
+            
+            # Track metrics if requested
+            if track_metrics and evaluation_service:
+                # Prepare metadata
+                metadata = {
+                    "cache_hit": False,
+                    "query_hash": query_hash,
+                    "search_type": "hybrid",
+                    "semantic_weight": semantic_weight,
+                    "keyword_weight": keyword_weight,
+                    "db_type": "postgres" if self.is_postgres else "sqlite"
+                }
+                
+                # Log metrics with evaluation service
+                await evaluation_service.log_retrieval_metrics(
+                    query_text=query_text,
+                    results=results,
+                    latency_ms=latency_ms,
+                    user_id=user_id,
+                    session_id=session_id,
+                    metadata=metadata
+                )
+            
+            # Cache the results for future queries
+            await cache_vector_search(query_hash, results, settings.SEARCH_CACHE_TTL)
+            
+            log.info(f"Hybrid search completed with {len(results)} results in {latency_ms:.2f}ms")
+            return results
+        
+        except Exception as e:
+            log.error(f"Error performing hybrid search: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to perform hybrid search: {str(e)}")
     
     async def index_data_package(
         self,
@@ -595,7 +942,12 @@ class EmbeddingService:
         query_text: str,
         top_k: Optional[int] = None,
         max_tokens: Optional[int] = None,
-        model_name: Optional[str] = None
+        model_name: Optional[str] = None,
+        track_metrics: bool = True,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        evaluation_service = None,
+        ab_test_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Retrieve context for RAG (Retrieval Augmented Generation).
@@ -605,17 +957,49 @@ class EmbeddingService:
             top_k: Number of results to retrieve
             max_tokens: Maximum tokens for context
             model_name: Optional embedding model to use
+            track_metrics: Whether to track performance metrics
+            session_id: Optional session ID for tracking
+            user_id: Optional user ID for tracking
+            evaluation_service: Optional evaluation service instance
+            ab_test_name: Optional A/B test name to use for this retrieval
             
         Returns:
             Dict with retrieved context and metadata
         """
         try:
+            start_time = time.time()
+            
+            # Apply A/B testing if requested and evaluation service is available
+            ab_test_variant = None
+            if ab_test_name and evaluation_service:
+                ab_test_variant = await evaluation_service.get_active_ab_test_variant(
+                    test_name=ab_test_name,
+                    user_id=user_id,
+                    session_id=session_id
+                )
+                
+                # Apply test parameters if available
+                if ab_test_variant:
+                    params = ab_test_variant.get("parameters", {})
+                    
+                    # Override parameters with test values
+                    if "top_k" in params:
+                        top_k = params["top_k"]
+                    if "max_tokens" in params:
+                        max_tokens = params["max_tokens"]
+                    if "model_name" in params:
+                        model_name = params["model_name"]
+            
             # Perform vector search
             search_results = await self.vector_search(
                 query_text=query_text,
                 top_k=top_k or self.vector_search_top_k,
                 use_nvidia_api=True,  # Use Nvidia API for better results
-                filter_metadata={}
+                filter_metadata={},
+                track_metrics=track_metrics,
+                session_id=session_id,
+                user_id=user_id,
+                evaluation_service=evaluation_service
             )
             
             # Extract text content and package info
@@ -645,19 +1029,248 @@ class EmbeddingService:
                 formatted_context += item["text"]
                 formatted_context += "\n\n"
             
-            # Return the formatted context with metadata
-            return {
+            # Calculate metrics
+            end_time = time.time()
+            latency_ms = (end_time - start_time) * 1000
+            token_count = count_tokens(formatted_context)
+            
+            # Construct result
+            result = {
                 "query": query_text,
                 "context": formatted_context,
                 "package_ids": package_ids,
                 "result_count": len(search_results),
-                "token_count": count_tokens(formatted_context),
+                "token_count": token_count,
+                "latency_ms": latency_ms,
                 "timestamp": datetime.utcnow().isoformat()
             }
+            
+            # Log A/B test info if applicable
+            if ab_test_variant and evaluation_service:
+                # Add A/B test info to the response
+                result["ab_test"] = {
+                    "test_id": ab_test_variant["test_id"],
+                    "test_name": ab_test_variant["test_name"],
+                    "variant": ab_test_variant["variant"]
+                }
+                
+                # Get metric ID from search_results (assuming it's in the last result's metadata)
+                if track_metrics and len(search_results) > 0 and "metric_id" in search_results[0].get("metadata", {}):
+                    metric_id = search_results[0]["metadata"]["metric_id"]
+                    
+                    # Log the A/B test result
+                    await evaluation_service.log_ab_test_result(
+                        test_id=ab_test_variant["test_id"],
+                        variant=ab_test_variant["variant"],
+                        metric_id=metric_id,
+                        outcome="context_retrieval",
+                        score=token_count,  # Use token count as a score
+                        user_id=user_id,
+                        session_id=session_id,
+                        metadata={"latency_ms": latency_ms}
+                    )
+            
+            return result
         
         except Exception as e:
             log.error(f"Error retrieving context: {str(e)}", exc_info=True)
             raise Exception(f"Failed to retrieve context: {str(e)}")
+    
+    async def assemble_cross_package_context(
+        self,
+        query_text: str,
+        max_packages: Optional[int] = None,
+        max_items_per_package: int = 3,
+        max_tokens: Optional[int] = None,
+        use_hybrid_search: bool = True,
+        semantic_weight: Optional[float] = None,
+        keyword_weight: Optional[float] = None,
+        track_metrics: bool = True,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        evaluation_service = None
+    ) -> Dict[str, Any]:
+        """
+        Assemble context from multiple data packages for complex queries.
+        This provides a richer context by retrieving information from different sources.
+        
+        Args:
+            query_text: Query text for retrieval
+            max_packages: Maximum number of packages to include
+            max_items_per_package: Maximum items to include per package
+            max_tokens: Maximum tokens for the final context
+            use_hybrid_search: Whether to use hybrid search (True) or vector search (False)
+            semantic_weight: Weight for semantic results in hybrid search
+            keyword_weight: Weight for keyword results in hybrid search
+            track_metrics: Whether to track performance metrics
+            session_id: Optional session ID for tracking
+            user_id: Optional user ID for tracking
+            evaluation_service: Optional evaluation service instance
+            
+        Returns:
+            Dict with assembled context from multiple packages
+        """
+        try:
+            start_time = time.time()
+            max_packages = max_packages or 5  # Default to 5 packages max
+            max_tokens = max_tokens or 2000  # Default to 2000 tokens max
+            
+            # Step 1: Perform primary search (hybrid or vector)
+            if use_hybrid_search:
+                search_results = await self.hybrid_search(
+                    query_text=query_text,
+                    semantic_weight=semantic_weight,
+                    keyword_weight=keyword_weight,
+                    top_k=self.cross_package_max_items,
+                    track_metrics=False  # We'll track metrics for the final assembled result
+                )
+            else:
+                search_results = await self.vector_search(
+                    query_text=query_text, 
+                    top_k=self.cross_package_max_items,
+                    track_metrics=False
+                )
+            
+            # Step 2: Group results by package
+            packages = {}
+            for result in search_results:
+                package_id = result.get("package_id")
+                if not package_id:
+                    continue
+                
+                if package_id not in packages:
+                    packages[package_id] = []
+                
+                # Add this result to the package group with its score
+                # Use combined_score if available (hybrid search), otherwise use similarity
+                score = result.get("combined_score", result.get("similarity", 0))
+                
+                packages[package_id].append({
+                    "id": result.get("id"),
+                    "text_content": result.get("text_content", ""),
+                    "metadata": result.get("metadata", {}),
+                    "score": score,
+                    "embedding_type": result.get("embedding_type", "")
+                })
+            
+            # Step 3: Sort packages by their best result score
+            package_scores = []
+            for pkg_id, items in packages.items():
+                # Sort items within this package by score
+                items.sort(key=lambda x: x["score"], reverse=True)
+                
+                # Calculate a package score based on top items
+                best_score = items[0]["score"] if items else 0
+                package_scores.append((pkg_id, best_score, items))
+            
+            # Sort packages by their best score
+            package_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # Limit to max_packages
+            package_scores = package_scores[:max_packages]
+            
+            # Step 4: Assemble context by taking top items from each package
+            all_context_items = []
+            total_tokens = 0
+            
+            for pkg_id, pkg_score, items in package_scores:
+                # Get package metadata for additional context
+                package_data = await self.data_service.get_data_package(pkg_id)
+                package_name = package_data.get("name", "") if package_data else ""
+                package_type = package_data.get("package_type", "") if package_data else ""
+                
+                # Take top N items from this package, respecting token limit
+                pkg_items = []
+                for item in items[:max_items_per_package]:
+                    item_tokens = count_tokens(item["text_content"])
+                    
+                    # Check if adding this item would exceed the token limit
+                    if max_tokens and (total_tokens + item_tokens > max_tokens) and all_context_items:
+                        # If we already have some items, stop adding more
+                        break
+                    
+                    # Add this item's tokens to the total
+                    total_tokens += item_tokens
+                    
+                    # Create a context item with package metadata
+                    context_item = {
+                        "text": item["text_content"],
+                        "package_id": pkg_id,
+                        "package_name": package_name,
+                        "package_type": package_type,
+                        "score": item["score"],
+                        "metadata": item["metadata"],
+                    }
+                    
+                    pkg_items.append(context_item)
+                    all_context_items.append(context_item)
+            
+            # Step 5: Format the assembled context
+            formatted_context = ""
+            package_contexts = {}
+            
+            # Group by package for better organization in the final context
+            for item in all_context_items:
+                pkg_id = item["package_id"]
+                if pkg_id not in package_contexts:
+                    package_contexts[pkg_id] = {
+                        "name": item["package_name"],
+                        "type": item["package_type"],
+                        "items": []
+                    }
+                
+                package_contexts[pkg_id]["items"].append(item)
+            
+            # Format context with package headers
+            for pkg_id, pkg_context in package_contexts.items():
+                formatted_context += f"\n=== Package: {pkg_context['name']} (ID: {pkg_id}) ===\n"
+                formatted_context += f"Type: {pkg_context['type']}\n\n"
+                
+                for i, item in enumerate(pkg_context["items"]):
+                    formatted_context += f"--- Item {i+1} (Relevance: {item['score']:.4f}) ---\n"
+                    formatted_context += item["text"]
+                    formatted_context += "\n\n"
+            
+            # Calculate metrics
+            end_time = time.time()
+            latency_ms = (end_time - start_time) * 1000
+            
+            # Construct the result
+            result = {
+                "query": query_text,
+                "context": formatted_context,
+                "package_count": len(package_contexts),
+                "item_count": len(all_context_items),
+                "token_count": count_tokens(formatted_context),
+                "latency_ms": latency_ms,
+                "packages": [{"id": pkg_id, "name": pkg["name"], "item_count": len(pkg["items"])} 
+                            for pkg_id, pkg in package_contexts.items()],
+                "search_type": "hybrid" if use_hybrid_search else "vector",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            # Track metrics if requested
+            if track_metrics and evaluation_service:
+                await evaluation_service.log_retrieval_metrics(
+                    query_text=query_text,
+                    results=all_context_items,
+                    latency_ms=latency_ms,
+                    user_id=user_id,
+                    session_id=session_id,
+                    metadata={
+                        "search_type": "cross_package",
+                        "use_hybrid_search": use_hybrid_search,
+                        "package_count": len(package_contexts),
+                        "token_count": result["token_count"]
+                    }
+                )
+            
+            log.info(f"Assembled cross-package context with {result['package_count']} packages and {result['item_count']} items")
+            return result
+            
+        except Exception as e:
+            log.error(f"Error assembling cross-package context: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to assemble cross-package context: {str(e)}")
     
     def _calculate_cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
         """
@@ -784,6 +1397,370 @@ class EmbeddingService:
                 "message": f"Batch processing failed: {str(e)}",
                 "processing_time_seconds": time.time() - start_time
             }
+
+    async def query_expansion_search(
+        self,
+        query_text: str,
+        top_k: Optional[int] = None,
+        use_hybrid_search: bool = True,
+        max_expansions: int = 3,
+        expansion_model: Optional[str] = None,
+        track_metrics: bool = True,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        evaluation_service = None
+    ) -> Dict[str, Any]:
+        """
+        Enhance search by automatically expanding the query with related terms.
+        This can improve recall for queries where the user's terminology may differ from content.
+        
+        Args:
+            query_text: Original query text
+            top_k: Number of results to return
+            use_hybrid_search: Whether to use hybrid search (True) or vector search (False)
+            max_expansions: Maximum number of expanded queries to generate
+            expansion_model: Optional model to use for query expansion
+            track_metrics: Whether to track performance metrics
+            session_id: Optional session ID for tracking
+            user_id: Optional user ID for tracking
+            evaluation_service: Optional evaluation service instance
+            
+        Returns:
+            Dict with search results and expanded queries
+        """
+        try:
+            start_time = time.time()
+            top_k = top_k or self.vector_search_top_k
+            
+            # Step 1: Generate expanded queries using LLM
+            expanded_queries = [query_text]  # Always include the original query
+            
+            # Build a prompt for query expansion
+            expansion_prompt = f"""Your task is to generate {max_expansions} different versions of the 
+            following query that maintain the same intent but use different wording, terminology,
+            or phrasing. This will help improve retrieval by capturing different ways the information
+            might be expressed in documents.
+            
+            Original query: "{query_text}"
+            
+            Generate only the expanded queries, one per line. Do not include explanations."""
+            
+            try:
+                # Generate expanded queries using LLM
+                expansion_result = await self.llm_service.generate_completion(
+                    prompt=expansion_prompt,
+                    model=expansion_model or "gpt-3.5-turbo",
+                    max_tokens=250,
+                    temperature=0.7
+                )
+                
+                # Parse expanded queries from result
+                expansion_text = expansion_result.get("text", "")
+                for line in expansion_text.strip().split("\n"):
+                    line = line.strip()
+                    # Skip empty lines or lines with just numbers/bullets
+                    if line and not line[0].isdigit() and not line.startswith("•") and not line.startswith("-"):
+                        # Remove quotation marks if present
+                        line = line.strip('"\'')
+                        if line and line != query_text and line not in expanded_queries:
+                            expanded_queries.append(line)
+                            
+                            # Limit to max_expansions
+                            if len(expanded_queries) > max_expansions:
+                                break
+                
+                log.info(f"Generated {len(expanded_queries)-1} expanded queries for: {query_text}")
+                
+            except Exception as e:
+                log.warning(f"Query expansion failed, proceeding with original query only: {str(e)}")
+            
+            # Step 2: Search with each expanded query
+            all_results = []
+            query_results = {}
+            
+            # Perform searches in parallel
+            async def search_with_query(q):
+                if use_hybrid_search:
+                    results = await self.hybrid_search(
+                        query_text=q,
+                        top_k=top_k,
+                        track_metrics=False
+                    )
+                else:
+                    results = await self.vector_search(
+                        query_text=q,
+                        top_k=top_k,
+                        track_metrics=False
+                    )
+                return q, results
+            
+            # Create tasks for all queries
+            search_tasks = [search_with_query(q) for q in expanded_queries]
+            expanded_results = await asyncio.gather(*search_tasks)
+            
+            # Process results from each query
+            for query, results in expanded_results:
+                query_results[query] = results
+                all_results.extend(results)
+            
+            # Step 3: Deduplicate results based on embedding IDs
+            seen_ids = set()
+            unique_results = []
+            
+            for result in all_results:
+                result_id = result.get("id")
+                if result_id not in seen_ids:
+                    seen_ids.add(result_id)
+                    unique_results.append(result)
+            
+            # Step 4: Rerank results - prioritize those appearing in multiple expanded queries
+            result_counts = {}
+            for result in all_results:
+                result_id = result.get("id")
+                if result_id not in result_counts:
+                    result_counts[result_id] = 0
+                result_counts[result_id] += 1
+            
+            # Add a boost factor based on appearance in multiple queries
+            for result in unique_results:
+                result_id = result.get("id")
+                count = result_counts.get(result_id, 1)
+                
+                # Add a boost to the score based on frequency across queries
+                boost = min(count / len(expanded_queries), 0.5)  # Cap at 0.5 boost
+                
+                # Apply the boost to the existing score
+                original_score = result.get("combined_score", result.get("similarity", 0))
+                result["original_score"] = original_score
+                result["boosted_score"] = original_score * (1 + boost)
+                result["query_count"] = count
+            
+            # Sort by boosted score
+            unique_results.sort(key=lambda x: x.get("boosted_score", 0), reverse=True)
+            
+            # Take the top_k results
+            final_results = unique_results[:top_k]
+            
+            # Calculate metrics
+            end_time = time.time()
+            latency_ms = (end_time - start_time) * 1000
+            
+            # Construct the result
+            result = {
+                "original_query": query_text,
+                "expanded_queries": expanded_queries,
+                "results": final_results,
+                "result_count": len(final_results),
+                "latency_ms": latency_ms,
+                "search_type": "query_expansion",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            # Track metrics if requested
+            if track_metrics and evaluation_service:
+                await evaluation_service.log_retrieval_metrics(
+                    query_text=query_text,
+                    results=final_results,
+                    latency_ms=latency_ms,
+                    user_id=user_id,
+                    session_id=session_id,
+                    metadata={
+                        "search_type": "query_expansion",
+                        "expanded_query_count": len(expanded_queries),
+                        "use_hybrid_search": use_hybrid_search
+                    }
+                )
+            
+            log.info(f"Query expansion search completed with {len(final_results)} results in {latency_ms:.2f}ms")
+            return result
+            
+        except Exception as e:
+            log.error(f"Error in query expansion search: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to perform query expansion search: {str(e)}")
+    
+    async def faceted_search(
+        self,
+        query_text: str,
+        facets: Dict[str, List[str]],
+        facet_weights: Optional[Dict[str, float]] = None,
+        use_hybrid_search: bool = True,
+        top_k: Optional[int] = None,
+        track_metrics: bool = True,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        evaluation_service = None
+    ) -> Dict[str, Any]:
+        """
+        Perform faceted search that combines semantic/hybrid search with metadata filtering.
+        
+        Args:
+            query_text: Text to search for
+            facets: Dict of facet names to list of values to include
+            facet_weights: Optional weights for each facet (higher = more important)
+            use_hybrid_search: Whether to use hybrid search (True) or vector search (False)
+            top_k: Number of results to return
+            track_metrics: Whether to track performance metrics
+            session_id: Optional session ID for tracking
+            user_id: Optional user ID for tracking
+            evaluation_service: Optional evaluation service instance
+            
+        Returns:
+            Dict with search results grouped by facets
+        """
+        try:
+            start_time = time.time()
+            top_k = top_k or self.vector_search_top_k
+            
+            # Validate facets
+            if not facets:
+                facets = {}
+            
+            # Initialize facet weights if not provided
+            if not facet_weights:
+                facet_weights = {facet: 1.0 for facet in facets}
+            
+            # Normalize facet weights
+            total_weight = sum(facet_weights.values())
+            if total_weight > 0:
+                facet_weights = {k: v/total_weight for k, v in facet_weights.items()}
+            
+            # Create filter metadata for the initial search
+            # Note: We'll do a broad search first, then filter and rerank
+            filter_metadata = {}
+            
+            # Perform search (hybrid or vector)
+            if use_hybrid_search:
+                initial_results = await self.hybrid_search(
+                    query_text=query_text,
+                    top_k=top_k * 3,  # Get more results initially to allow for filtering
+                    filter_metadata=filter_metadata,
+                    track_metrics=False
+                )
+            else:
+                initial_results = await self.vector_search(
+                    query_text=query_text,
+                    top_k=top_k * 3,
+                    filter_metadata=filter_metadata,
+                    track_metrics=False
+                )
+            
+            # Filter and rerank results based on facets
+            faceted_results = []
+            
+            for result in initial_results:
+                metadata = result.get("metadata", {})
+                
+                # Calculate facet match score
+                facet_match_score = 0.0
+                matched_facets = 0
+                
+                for facet_name, facet_values in facets.items():
+                    if not facet_values:
+                        continue
+                        
+                    # Get facet value from result metadata
+                    result_facet_value = metadata.get(facet_name)
+                    
+                    # Check if the result matches any of the requested facet values
+                    if result_facet_value is not None:
+                        # Handle list/array values
+                        if isinstance(result_facet_value, list):
+                            # Check for any overlap between the lists
+                            matches = set(result_facet_value) & set(facet_values)
+                            if matches:
+                                match_score = len(matches) / len(facet_values)
+                                facet_match_score += match_score * facet_weights.get(facet_name, 1.0)
+                                matched_facets += 1
+                        # Handle string/scalar values
+                        elif result_facet_value in facet_values:
+                            facet_match_score += facet_weights.get(facet_name, 1.0)
+                            matched_facets += 1
+                
+                # Only include results that match at least one facet if facets were specified
+                if not facets or matched_facets > 0:
+                    # Get the original similarity or combined score
+                    original_score = result.get("combined_score", result.get("similarity", 0))
+                    
+                    # Calculate a combined score that accounts for both semantic and facet matching
+                    # Weight: 70% original score, 30% facet match score
+                    combined_score = (original_score * 0.7) + (facet_match_score * 0.3)
+                    
+                    # Create a new result with facet information
+                    faceted_result = {**result}
+                    faceted_result["facet_match_score"] = facet_match_score
+                    faceted_result["matched_facets"] = matched_facets
+                    faceted_result["original_score"] = original_score
+                    faceted_result["faceted_score"] = combined_score
+                    
+                    faceted_results.append(faceted_result)
+            
+            # Sort by combined score
+            faceted_results.sort(key=lambda x: x.get("faceted_score", 0), reverse=True)
+            
+            # Take the top_k results
+            faceted_results = faceted_results[:top_k]
+            
+            # Group results by facet for the response
+            facet_groups = {}
+            for facet_name in facets.keys():
+                facet_groups[facet_name] = {}
+                
+                # Create a sub-group for each facet value
+                for facet_value in facets[facet_name]:
+                    facet_groups[facet_name][facet_value] = []
+                    
+                    # Add results that match this facet value
+                    for result in faceted_results:
+                        metadata = result.get("metadata", {})
+                        result_facet_value = metadata.get(facet_name)
+                        
+                        if result_facet_value is not None:
+                            # Handle list values
+                            if isinstance(result_facet_value, list) and facet_value in result_facet_value:
+                                facet_groups[facet_name][facet_value].append(result)
+                            # Handle scalar values
+                            elif result_facet_value == facet_value:
+                                facet_groups[facet_name][facet_value].append(result)
+            
+            # Calculate metrics
+            end_time = time.time()
+            latency_ms = (end_time - start_time) * 1000
+            
+            # Construct the result
+            result = {
+                "query": query_text,
+                "facets": facets,
+                "facet_weights": facet_weights,
+                "results": faceted_results,
+                "facet_groups": facet_groups,
+                "result_count": len(faceted_results),
+                "latency_ms": latency_ms,
+                "search_type": "faceted",
+                "use_hybrid_search": use_hybrid_search,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            # Track metrics if requested
+            if track_metrics and evaluation_service:
+                await evaluation_service.log_retrieval_metrics(
+                    query_text=query_text,
+                    results=faceted_results,
+                    latency_ms=latency_ms,
+                    user_id=user_id,
+                    session_id=session_id,
+                    metadata={
+                        "search_type": "faceted",
+                        "facets": facets,
+                        "use_hybrid_search": use_hybrid_search
+                    }
+                )
+            
+            log.info(f"Faceted search completed with {len(faceted_results)} results in {latency_ms:.2f}ms")
+            return result
+            
+        except Exception as e:
+            log.error(f"Error in faceted search: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to perform faceted search: {str(e)}")
 
 
 # Dependency for FastAPI

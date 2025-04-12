@@ -5,6 +5,7 @@ from .database import Base
 from sqlalchemy.dialects.postgresql import JSONB
 from .config import settings
 import json
+import numpy as np
 
 # Import pgvector's Vector type if using PostgreSQL
 if settings.DATABASE_URL.startswith('postgresql'):
@@ -123,3 +124,103 @@ class DataPackageEmbedding(Base):
     
     def __repr__(self):
         return f"<DataPackageEmbedding(id={self.id}, package_id={self.package_id}, model={self.model_name})>"
+
+class RetrievalMetric(Base):
+    """
+    Model for storing RAG retrieval metrics and performance data.
+    Tracks query, results, relevance, and performance metrics.
+    """
+    __tablename__ = "retrieval_metrics"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    query_text = Column(Text)  # Original query text
+    result_count = Column(Integer)  # Number of results returned
+    latency_ms = Column(Float)  # Query processing time in milliseconds
+    user_id = Column(String, index=True, nullable=True)  # Optional user ID
+    session_id = Column(String, index=True)  # Session ID for grouping queries
+    timestamp = Column(DateTime(timezone=True), index=True)  # When the query was executed
+    
+    # List of returned package IDs (stored as JSON array)
+    result_package_ids = Column(JSON, default=list)
+    
+    # List of known relevant package IDs (for evaluation)
+    relevant_package_ids = Column(JSON, nullable=True)
+    
+    # Evaluation metrics
+    precision = Column(Float, nullable=True)  # Precision score
+    recall = Column(Float, nullable=True)  # Recall score
+    mrr = Column(Float, nullable=True)  # Mean Reciprocal Rank
+    ndcg = Column(Float, nullable=True)  # Normalized Discounted Cumulative Gain
+    user_rating = Column(Integer, nullable=True)  # User rating (1-5)
+    
+    # Additional metadata
+    metadata = Column(JSON, default=dict)
+    
+    def __repr__(self):
+        return f"<RetrievalMetric(id={self.id}, query={self.query_text[:20]}..., results={self.result_count})>"
+
+class RetrievalFeedback(Base):
+    """
+    Model for storing user feedback on RAG results.
+    """
+    __tablename__ = "retrieval_feedback"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    metric_id = Column(Integer, ForeignKey("retrieval_metrics.id"), index=True)
+    user_id = Column(String, index=True, nullable=True)  # User who provided feedback
+    rating = Column(Integer)  # User rating (1-5)
+    feedback_text = Column(Text, nullable=True)  # Optional text feedback
+    
+    # Lists of helpful and unhelpful result IDs
+    helpful_result_ids = Column(JSON, default=list)
+    unhelpful_result_ids = Column(JSON, default=list)
+    
+    timestamp = Column(DateTime(timezone=True), index=True)
+    metadata = Column(JSON, default=dict)
+    
+    def __repr__(self):
+        return f"<RetrievalFeedback(id={self.id}, metric_id={self.metric_id}, rating={self.rating})>"
+
+class ABTestConfig(Base):
+    """
+    Model for A/B testing configurations for RAG strategies.
+    """
+    __tablename__ = "ab_test_configs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)  # Test name (e.g., "chunk_size_test")
+    description = Column(Text, nullable=True)  # Test description
+    variants = Column(JSON)  # Dictionary of test variants and their parameters
+    traffic_allocation = Column(JSON)  # Traffic allocation by variant
+    active = Column(Boolean, default=True)  # Whether this test is active
+    created_at = Column(DateTime(timezone=True))
+    updated_at = Column(DateTime(timezone=True))
+    metadata = Column(JSON, default=dict)
+    
+    def __repr__(self):
+        return f"<ABTestConfig(id={self.id}, name={self.name}, active={self.active})>"
+
+class EmbeddingParameter(Base):
+    """
+    Model for storing embedding parameter configurations for fine-tuning.
+    """
+    __tablename__ = "embedding_parameters"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)  # Parameter set name
+    model_name = Column(String, index=True)  # Associated model name
+    parameters = Column(JSON)  # Embedding parameters (dimensions, training params, etc.)
+    description = Column(Text, nullable=True)  # Description of parameter set
+    active = Column(Boolean, default=False)  # Whether these are the active parameters
+    created_at = Column(DateTime(timezone=True))
+    updated_at = Column(DateTime(timezone=True))
+    metadata = Column(JSON, default=dict)
+    
+    __table_args__ = (
+        # Only one active parameter set per model
+        UniqueConstraint('model_name', 'active', name='uix_model_active_params',
+                         postgresql_where=active.is_(True)),
+    )
+    
+    def __repr__(self):
+        return f"<EmbeddingParameter(id={self.id}, name={self.name}, model={self.model_name})>"
