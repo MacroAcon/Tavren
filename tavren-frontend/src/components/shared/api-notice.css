@@ -1,0 +1,31 @@
+.api-notice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: #fffae6;
+  border-left: 4px solid #f5c518;
+  padding: 8px 12px;
+  margin: 8px 0;
+  font-size: 13px;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.api-notice-badge {
+  display: inline-block;
+  background-color: #f5c518;
+  color: #000;
+  font-weight: bold;
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  margin-right: 8px;
+}
+
+.api-notice-content {
+  color: #5a5a5a;
+}
+
+.api-notice-content strong {
+  color: #333;
+} 

@@ -1,0 +1,48 @@
+.offline-indicator {
+  position: fixed;
+  bottom: 70px; /* Above the bottom navigation on mobile */
+  left: 0;
+  right: 0;
+  background-color: #fef6e6;
+  color: #805b10;
+  padding: 10px 16px;
+  text-align: center;
+  z-index: 1000;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s ease-out;
+}
+
+.offline-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.offline-icon {
+  font-size: 20px;
+}
+
+.offline-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .offline-indicator {
+    bottom: 20px;
+    left: 20px;
+    right: auto;
+    border-radius: 8px;
+    max-width: 300px;
+  }
+} 

@@ -10,6 +10,7 @@ import TrustVisualization from './components/TrustVisualization';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import NotificationSystem from './components/shared/NotificationSystem';
 import MobileNavigation from './components/shared/MobileNavigation';
+import OfflineIndicator from './components/shared/OfflineIndicator';
 import { 
   WalletDashboard, 
   PaymentMethodManagement, 
@@ -156,6 +157,9 @@ function App() {
 
         {/* Notification System */}
         <NotificationSystem />
+        
+        {/* Offline Indicator */}
+        <OfflineIndicator />
       </div>
     </Router>
   );

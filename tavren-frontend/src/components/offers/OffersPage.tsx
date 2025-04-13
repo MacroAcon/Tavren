@@ -5,6 +5,7 @@ import './offers.css';
 import OfferCard from './OfferCard';
 import LoadingState from '../shared/LoadingState';
 import ErrorState from '../shared/ErrorState';
+import ApiNotice from '../shared/ApiNotice';
 
 const OffersPage: React.FC = () => {
   const { 
@@ -125,12 +126,13 @@ const OffersPage: React.FC = () => {
 
   return (
     <div className="offers-page">
-      <h1>Data Offers</h1>
+      <h1>Offer Feed</h1>
       <p className="offers-description">
-        Browse available data sharing opportunities from trusted partners. 
-        Find offers that match your privacy preferences and compensation requirements.
+        Browse data sharing offers from trusted companies. These offers represent opportunities to monetize your data while maintaining control over what you share.
       </p>
-
+      
+      <ApiNotice component="Offers Feed" mockData={true} />
+      
       <div className="offers-container">
         <aside className="offers-sidebar">
           {/* Mobile filter toggle button */}

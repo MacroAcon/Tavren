@@ -89,7 +89,7 @@
   }
 
   .drawer-backdrop {
-    display: block;
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
@@ -97,6 +97,11 @@
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 999;
+  }
+  
+  /* Show backdrop when drawer is open */
+  .drawer-backdrop {
+    display: block;
   }
 
   .drawer-header {
