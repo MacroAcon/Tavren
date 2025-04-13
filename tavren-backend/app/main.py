@@ -24,12 +24,14 @@ from .routers import (
     wallet_router,
     payout_router,
     auth_router,
-    data_packaging_router
+    data_packaging_router,
+    insight_router
 )
 
 from .routers.buyer_data import buyer_data_router
 from .routers.llm_router import llm_router
 from .routers.embedding_router import embedding_router
+from .routers.consent_ledger import consent_ledger_router
 from app.routers import users, data, consent, payment, embeddings, evaluation
 from .routers import user_router
 
@@ -37,6 +39,8 @@ from .routers import user_router
 from .exceptions import register_exception_handlers
 # Import new centralized error handlers
 from .errors import get_exception_handlers
+
+from fastapi.middleware.cors import CORSMiddleware
 
 # Call logging setup early
 setup_logging()
@@ -65,6 +69,13 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     log.info("Running startup event...")
+    
+    # Create data directory if it doesn't exist
+    data_dir = settings.DATA_DIR
+    if not data_dir.exists():
+        log.info(f"Creating data directory: {data_dir}")
+        data_dir.mkdir(parents=True, exist_ok=True)
+    
     async with async_engine.begin() as conn:
         log.info(f"Creating database tables if they don't exist for DB: {settings.DATABASE_URL}")
         # await conn.run_sync(Base.metadata.drop_all) # Optional: Drop tables on startup for clean testing
@@ -78,6 +89,15 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Add custom middleware
 app.add_middleware(RequestTimingMiddleware)
 app.add_middleware(RateLimitHeaderMiddleware)
+
+# Add CORS middleware for frontend development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Frontend dev servers
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Register old exception handlers (legacy)
 register_exception_handlers(app)
@@ -98,6 +118,7 @@ app.include_router(static_router)
 # Consent routes
 app.include_router(consent_router)
 app.include_router(consent_dashboard_router)
+app.include_router(consent_ledger_router)
 
 # Buyer routes
 app.include_router(buyer_router)
@@ -113,6 +134,9 @@ app.include_router(agent_router)
 
 # Data packaging routes
 app.include_router(data_packaging_router)
+
+# Insight processing routes (experimental)
+app.include_router(insight_router)
 
 # LLM integration routes
 app.include_router(llm_router)

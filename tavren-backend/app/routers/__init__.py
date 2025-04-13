@@ -5,6 +5,7 @@ from .wallet import reward_router, wallet_router, payout_router
 from .agent import agent_router
 from .data_packaging import data_packaging_router
 from .users import router as user_router
+from .insight import insight_router
 
 __all__ = [
     'static_router',
@@ -15,5 +16,6 @@ __all__ = [
     'payout_router',
     'agent_router',
     'data_packaging_router',
-    'user_router'
+    'user_router',
+    'insight_router'
 ]

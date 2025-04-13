@@ -66,4 +66,12 @@ from app.schemas.llm import (
     QueryExpansionResponse,
     FacetedSearchRequest,
     FacetedSearchResponse
-) 
+)
+
+from .insight import InsightRequest, InsightResponse, ApiInfoResponse
+
+__all__ = [
+    'InsightRequest', 
+    'InsightResponse', 
+    'ApiInfoResponse'
+] 

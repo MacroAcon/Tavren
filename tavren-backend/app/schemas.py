@@ -2,13 +2,44 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
 
-class ConsentEventCreate(BaseModel):
-    user_id: str
-    offer_id: str
-    action: str
-    timestamp: Optional[datetime] = None
-    user_reason: Optional[str] = None
-    reason_category: Optional[str] = None
+class ConsentEventBase(BaseModel):
+    """Base model for consent events with common fields"""
+    user_id: str = Field(..., description="ID of the user associated with this consent event")
+    action: str = Field(..., description="Action taken (opt_in, opt_out, withdraw, grant_partial, etc.)")
+    scope: Optional[str] = Field(None, description="Data category scope (location, purchase_data, all, etc.)")
+    purpose: Optional[str] = Field(None, description="Purpose for data use (insight_generation, ad_targeting, etc.)")
+    initiated_by: str = Field("user", description="Who initiated this consent action (user, system)")
+    offer_id: Optional[str] = Field(None, description="ID of the offer associated with this consent event")
+    user_reason: Optional[str] = Field(None, description="User-provided reason for this consent action")
+    reason_category: Optional[str] = Field(None, description="Categorized reason (privacy, trust, complexity, etc.)")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata for the consent event")
+
+class ConsentEventCreate(ConsentEventBase):
+    """Model for creating a new consent event"""
+    pass
+
+class ConsentEventResponse(ConsentEventBase):
+    """Model for consent event responses with additional fields"""
+    id: int = Field(..., description="Unique identifier for the consent event")
+    timestamp: datetime = Field(..., description="When the consent event occurred")
+    verification_hash: Optional[str] = Field(None, description="Verification hash for tamper evidence")
+    prev_hash: Optional[str] = Field(None, description="Hash of the previous event in the chain")
+
+    class Config:
+        orm_mode = True
+
+class ConsentLedgerExport(BaseModel):
+    """Model for exporting the consent ledger"""
+    events: List[ConsentEventResponse] = Field(..., description="List of consent events")
+    exported_at: datetime = Field(default_factory=datetime.now, description="When the export was created")
+    total_events: int = Field(..., description="Total number of events in the export")
+
+class LedgerVerificationResult(BaseModel):
+    """Model for ledger verification results"""
+    verified: bool = Field(..., description="Whether the ledger integrity is verified")
+    users_checked: int = Field(..., description="Number of users checked")
+    events_checked: int = Field(..., description="Number of events checked")
+    inconsistencies: List[Dict[str, Any]] = Field([], description="Details of any inconsistencies found")
 
 class ReasonStats(BaseModel):
     reason_category: str

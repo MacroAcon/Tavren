@@ -3,7 +3,7 @@ import os
 import logging.config
 import secrets
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, List
+from typing import Optional, List, Path
 
 # This ensures correct .env loading regardless of where the app is run
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -11,31 +11,34 @@ BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 
 class Settings(BaseSettings):
-    # Load .env file relative to the project root directory (Tavren/)
-    model_config = SettingsConfigDict(env_file=PROJECT_ROOT / '.env', extra='ignore')
-
-    # Database URL: default to local SQLite if not set in .env
-    # Make sure the default uses an async driver if .env isn't found
-    DATABASE_URL: str = f"sqlite+aiosqlite:///{BASE_DIR / 'app' / 'tavren_dev.db'}"
-
-    # Application settings
-    MINIMUM_PAYOUT_THRESHOLD: float = 5.00
-    LOG_LEVEL: str = "INFO"
-
-    # Path settings (derived, not from env)
-    STATIC_DIR: pathlib.Path = BASE_DIR / "app" / "static"
-
-    # Security settings
-    # IMPORTANT: JWT_SECRET_KEY MUST be set in environment variables for production!
-    # Example to generate: openssl rand -hex 32
-    SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 # Token expiry time
+    """
+    Application settings class.
+    Get setting values from environment variables or .env file.
+    """
     
-    # Admin API key for protected operations like user registration
-    # Generate with: openssl rand -hex 24
-    ADMIN_API_KEY: str
-
+    # Database configuration
+    DATABASE_URL: str = "sqlite+aiosqlite:///./app/tavren_dev.db"
+    
+    # Logging configuration
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    LOG_FILE: Optional[str] = None  # Set to a filename to enable file logging
+    
+    # Security configuration
+    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    
+    # Wallet configuration
+    MINIMUM_PAYOUT_THRESHOLD: float = 5.00
+    
+    # Static files
+    STATIC_DIR: Path = Path("app/static")
+    
+    # Data storage directory
+    DATA_DIR: Path = Path("data")
+    
     # Data Packaging settings
     ENCRYPT_DATA_PACKAGES: bool = True
     DATA_ENCRYPTION_KEY: str  # Set in environment variables
@@ -99,19 +102,6 @@ class Settings(BaseSettings):
                 "WARNING: Using a randomly generated DATA_ENCRYPTION_KEY. "
                 "This is only acceptable for development environments. "
                 "Set DATA_ENCRYPTION_KEY environment variable for production."
-            )
-            
-        if not self.ADMIN_API_KEY:
-            is_production = os.environ.get('ENVIRONMENT') == 'production' or os.environ.get('ENV') == 'production'
-            if is_production:
-                raise ValueError("ADMIN_API_KEY environment variable is required in production mode")
-            # In development, generate a random key but log a warning
-            self.ADMIN_API_KEY = secrets.token_hex(24)  # 192 bits
-            import logging
-            logging.warning(
-                "WARNING: Using a randomly generated ADMIN_API_KEY. "
-                "This is only acceptable for development environments. "
-                "Set ADMIN_API_KEY environment variable for production to protect admin endpoints."
             )
             
         if not self.NVIDIA_API_KEY:

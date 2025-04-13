@@ -22,6 +22,7 @@ class ConsentEvent(Base):
     user_reason = Column(Text, nullable=True)
     reason_category = Column(String(32), nullable=True)
     paid_at = Column(DateTime(timezone=True), nullable=True) # Timestamp for processing
+    metadata = Column(JSON, nullable=True)  # Store additional consent information (scope, purpose, etc.)
 
 class Reward(Base):
     __tablename__ = "rewards"
