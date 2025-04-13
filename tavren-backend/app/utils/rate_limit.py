@@ -5,9 +5,12 @@ Uses Redis to track and limit request rates.
 
 import time
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 from fastapi import Request, HTTPException, Depends
 import redis.asyncio as redis
+from datetime import datetime, timedelta
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database import get_db
 
 from app.config import settings
 from app.auth import get_current_active_user
@@ -27,9 +30,9 @@ except Exception as e:
 
 class RateLimiter:
     """
-    Rate limiter for API endpoints using Redis.
+    Rate limiter for API endpoints using Redis or memory-based fallback.
     """
-    def __init__(self, times: int, seconds: int, prefix: str = "rate_limit"):
+    def __init__(self, times: int = 10, seconds: int = 60, prefix: str = "rate_limit"):
         """
         Initialize the rate limiter.
         
@@ -41,8 +44,10 @@ class RateLimiter:
         self.times = times
         self.seconds = seconds
         self.prefix = prefix
+        # In-memory store fallback if Redis is not available
+        self._memory_store: Dict[str, Dict[str, Any]] = {}
         
-    async def _get_rate_limit_key(self, request: Request, user_id: Optional[int] = None) -> str:
+    async def _get_rate_limit_key(self, request: Request, user_id: Optional[str] = None) -> str:
         """
         Get the rate limit key for a request.
         
@@ -75,50 +80,86 @@ class RateLimiter:
         Returns:
             Tuple of (is_allowed, current_count, ttl)
         """
-        if not redis_client:
-            # If Redis is not available, allow the request (fail open)
-            return True, 0, 0
-        
-        try:
-            pipeline = redis_client.pipeline()
-            
-            # Get current count and TTL
-            await pipeline.get(key)
-            await pipeline.ttl(key)
-            result = await pipeline.execute()
-            
-            current = int(result[0]) if result[0] else 0
-            ttl = max(result[1], 0) if result[1] else 0
-            
-            # If key doesn't exist or TTL is negative, reset
-            if current == 0 or ttl <= 0:
-                await redis_client.set(key, 1, ex=self.seconds)
-                return True, 1, self.seconds
-            
-            # Increment and check if over limit
-            if current < self.times:
-                await redis_client.incr(key)
-                return True, current + 1, ttl
-            else:
-                return False, current, ttl
+        if redis_client:
+            try:
+                pipeline = redis_client.pipeline()
                 
-        except Exception as e:
-            log.error(f"Error checking rate limit: {e}")
-            # Fail open - if we can't check the rate limit, allow the request
-            return True, 0, 0
+                # Get current count and TTL
+                await pipeline.get(key)
+                await pipeline.ttl(key)
+                result = await pipeline.execute()
+                
+                current = int(result[0]) if result[0] else 0
+                ttl = max(result[1], 0) if result[1] else 0
+                
+                # If key doesn't exist or TTL is negative, reset
+                if current == 0 or ttl <= 0:
+                    await redis_client.set(key, 1, ex=self.seconds)
+                    return True, 1, self.seconds
+                
+                # Increment and check if over limit
+                if current < self.times:
+                    await redis_client.incr(key)
+                    return True, current + 1, ttl
+                else:
+                    return False, current, ttl
+                    
+            except Exception as e:
+                log.error(f"Error checking rate limit with Redis: {e}")
+                # Fall back to in-memory store
+                return await self._memory_increment_and_check(key)
+        else:
+            # Redis not available, use in-memory store
+            return await self._memory_increment_and_check(key)
+    
+    async def _memory_increment_and_check(self, key: str) -> Tuple[bool, int, int]:
+        """
+        In-memory fallback for rate limiting when Redis is not available.
+        
+        Args:
+            key: Rate limit key
             
-    async def __call__(self, request: Request, user=Depends(get_current_active_user)) -> None:
+        Returns:
+            Tuple of (is_allowed, current_count, ttl)
+        """
+        now = time.time()
+        
+        if key in self._memory_store:
+            data = self._memory_store[key]
+            # Check if window has expired
+            if now > data["expires_at"]:
+                # Reset
+                self._memory_store[key] = {
+                    "count": 1,
+                    "expires_at": now + self.seconds
+                }
+                return True, 1, self.seconds
+            else:
+                # Window still active
+                if data["count"] < self.times:
+                    data["count"] += 1
+                    return True, data["count"], int(data["expires_at"] - now)
+                else:
+                    return False, data["count"], int(data["expires_at"] - now)
+        else:
+            # New key
+            self._memory_store[key] = {
+                "count": 1,
+                "expires_at": now + self.seconds
+            }
+            return True, 1, self.seconds
+    
+    async def __call__(self, request: Request, user_id: Optional[str] = None) -> None:
         """
         Check if a request is allowed based on rate limits.
         
         Args:
             request: FastAPI request object
-            user: Authenticated user object
+            user_id: User ID for authenticated users
             
         Raises:
             HTTPException: If rate limit is exceeded
         """
-        user_id = user.get("id") if user else None
         key = await self._get_rate_limit_key(request, user_id)
         
         allowed, current, ttl = await self._increment_and_check(key)
@@ -131,8 +172,194 @@ class RateLimiter:
             log.warning(f"Rate limit exceeded for key: {key}")
             raise HTTPException(
                 status_code=429,
-                detail=f"Rate limit exceeded. Try again in {ttl} seconds."
+                detail=f"Rate limit exceeded. Try again in {ttl} seconds.",
+                headers={"Retry-After": str(ttl)}
             )
+    
+    # New methods for DSR rate limiting
+    
+    async def check_rate_limit(self, key: str, limit: int = 1, period: int = 86400) -> bool:
+        """
+        Check if a specific key is rate limited.
+        
+        Args:
+            key: Rate limit key (e.g., "dsr:export:user123")
+            limit: Number of allowed requests in the period
+            period: Time period in seconds
+            
+        Returns:
+            Boolean indicating if the operation is allowed
+        """
+        redis_key = f"{self.prefix}:{key}"
+        
+        if redis_client:
+            try:
+                # Get current count and TTL from Redis
+                pipeline = redis_client.pipeline()
+                await pipeline.get(redis_key)
+                await pipeline.ttl(redis_key)
+                result = await pipeline.execute()
+                
+                current = int(result[0]) if result[0] else 0
+                
+                # If we're at or over the limit, deny
+                if current >= limit:
+                    return False
+                
+                # Otherwise, allow (but don't increment yet)
+                return True
+                
+            except Exception as e:
+                log.error(f"Error checking DSR rate limit with Redis: {e}")
+                # Fall back to in-memory check
+                return self._memory_check_limit(key, limit)
+        else:
+            # Redis not available, use in-memory check
+            return self._memory_check_limit(key, limit)
+    
+    def _memory_check_limit(self, key: str, limit: int) -> bool:
+        """
+        In-memory check if a key is rate limited.
+        
+        Args:
+            key: Rate limit key
+            limit: Request limit
+            
+        Returns:
+            Boolean indicating if the operation is allowed
+        """
+        redis_key = f"{self.prefix}:{key}"
+        
+        if redis_key in self._memory_store:
+            data = self._memory_store[redis_key]
+            # Check if window is still active and we're at/over limit
+            now = time.time()
+            if now <= data["expires_at"] and data["count"] >= limit:
+                return False
+            
+        # Either not in store, window expired, or under limit
+        return True
+    
+    async def update_rate_limit(self, key: str, period: int = 86400) -> None:
+        """
+        Update the rate limit for a key after a successful operation.
+        Used primarily for DSR requests.
+        
+        Args:
+            key: Rate limit key (e.g., "dsr:export:user123")
+            period: Time period in seconds
+        """
+        redis_key = f"{self.prefix}:{key}"
+        
+        if redis_client:
+            try:
+                # Check if key exists
+                exists = await redis_client.exists(redis_key)
+                
+                if exists:
+                    # Increment existing key
+                    await redis_client.incr(redis_key)
+                else:
+                    # Create new key with expiry
+                    await redis_client.set(redis_key, 1, ex=period)
+                    
+            except Exception as e:
+                log.error(f"Error updating DSR rate limit with Redis: {e}")
+                # Fall back to in-memory update
+                self._memory_update_limit(key, period)
+        else:
+            # Redis not available, use in-memory update
+            self._memory_update_limit(key, period)
+    
+    def _memory_update_limit(self, key: str, period: int) -> None:
+        """
+        In-memory update of rate limit for a key.
+        
+        Args:
+            key: Rate limit key
+            period: Time period in seconds
+        """
+        redis_key = f"{self.prefix}:{key}"
+        now = time.time()
+        
+        if redis_key in self._memory_store:
+            data = self._memory_store[redis_key]
+            # Increment if window is still active
+            if now <= data["expires_at"]:
+                data["count"] += 1
+            else:
+                # Window expired, reset
+                self._memory_store[redis_key] = {
+                    "count": 1,
+                    "expires_at": now + period
+                }
+        else:
+            # New key
+            self._memory_store[redis_key] = {
+                "count": 1,
+                "expires_at": now + period
+            }
+    
+    async def get_last_request_time(self, key: str) -> Optional[datetime]:
+        """
+        Get the timestamp of the last request for a key.
+        Used primarily for DSR requests.
+        
+        Args:
+            key: Rate limit key (e.g., "dsr:export:user123")
+            
+        Returns:
+            Datetime of the last request, or None if no requests have been made
+        """
+        # For DSR rate limits, we don't actually store the last request time
+        # but we can approximate based on TTL
+        redis_key = f"{self.prefix}:{key}"
+        
+        if redis_client:
+            try:
+                ttl = await redis_client.ttl(redis_key)
+                
+                if ttl <= 0:
+                    return None
+                    
+                # If we have a TTL, estimate the last request time
+                # This is an approximation since we don't store exact timestamps
+                current_time = datetime.now()
+                period = await redis_client.get(f"{redis_key}:period") or 86400  # Default to 1 day
+                period = int(period)
+                
+                # Estimate when it was last set based on TTL
+                estimated_time = current_time - timedelta(seconds=period - ttl)
+                return estimated_time
+                
+            except Exception as e:
+                log.error(f"Error getting last request time from Redis: {e}")
+                # Fall back to returning None
+                return None
+        
+        # If using memory store or Redis fails, we don't have enough info
+        return None
+
+# Define different rate limits for various endpoint types
+standard_rate_limit = RateLimiter(times=60, seconds=60)  # 60 requests per minute
+auth_rate_limit = RateLimiter(times=10, seconds=60, prefix="auth_rate_limit")  # 10 auth requests per minute
+
+# Rate limiter instance that can be used directly in classes
+rate_limiter_instance = RateLimiter()
+
+def get_rate_limiter() -> RateLimiter:
+    """Dependency injection for the rate limiter."""
+    return rate_limiter_instance
+
+# Create a singleton instance
+_rate_limiter = None
+
+async def get_rate_limiter(db: AsyncSession = Depends(get_db)) -> RateLimiter:
+    """Dependency injection for the rate limiter."""
+    global _rate_limiter
+    if _rate_limiter is None:
+        _rate_limiter = RateLimiter(db)
+    return _rate_limiter
 
 # Define different rate limits for various endpoint types
 # More generous limits for simple reads, stricter for complex operations

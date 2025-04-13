@@ -25,7 +25,8 @@ from .routers import (
     payout_router,
     auth_router,
     data_packaging_router,
-    insight_router
+    insight_router,
+    dsr_router
 )
 
 from .routers.buyer_data import buyer_data_router
@@ -119,6 +120,9 @@ app.include_router(static_router)
 app.include_router(consent_router)
 app.include_router(consent_dashboard_router)
 app.include_router(consent_ledger_router)
+
+# DSR routes
+app.include_router(dsr_router)
 
 # Buyer routes
 app.include_router(buyer_router)

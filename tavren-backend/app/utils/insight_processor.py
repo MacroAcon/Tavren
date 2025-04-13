@@ -12,13 +12,17 @@ choosing the appropriate privacy-enhancing technology based on configuration.
 
 import logging
 import numpy as np
-from typing import Dict, List, Any, Union, Optional
+from typing import Dict, List, Any, Union, Optional, Tuple
 import pandas as pd
 import time
 import importlib.util
 import os
 import sys
 from enum import Enum
+import json
+from datetime import datetime
+import random
+import math
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -30,6 +34,12 @@ class QueryType(str, Enum):
 class PrivacyMethod(str, Enum):
     DP = "dp"
     SMPC = "smpc"
+
+# Import consent validation utilities
+from app.utils.consent_validator import validate_user_consent
+from app.services.consent_ledger import ConsentLedgerService
+from app.utils.rate_limit import RateLimiter
+from sqlalchemy.ext.asyncio import AsyncSession
 
 def validate_input(data: Any, query_type: str, pet_method: str, epsilon: Optional[float] = None) -> bool:
     """
@@ -339,4 +349,422 @@ async def process_insight(
                 "error_details": {"message": str(e)},
                 "status": "error"
             }
-        } 
+        }
+
+# Input validation functions
+def validate_query_input(data: List[Dict[str, Any]], query_type: QueryType) -> Tuple[bool, str]:
+    """
+    Validate the input data based on the query type.
+    
+    Args:
+        data: Input data as a list of dictionaries
+        query_type: Type of query to run
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not data:
+        return False, "Input data is empty"
+    
+    if not isinstance(data, list):
+        return False, "Input data must be a list"
+    
+    if query_type == QueryType.AVERAGE_STORE_VISITS:
+        # Count just needs a list of records
+        return True, ""
+        
+    elif query_type == QueryType.AVERAGE_STORE_VISITS:
+        # Check if data contains numeric values to average
+        numeric_keys = set()
+        for item in data:
+            for key, value in item.items():
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    numeric_keys.add(key)
+        
+        if not numeric_keys:
+            return False, "No numeric fields found for averaging"
+        return True, ""
+        
+    elif query_type == QueryType.AVERAGE_STORE_VISITS:
+        # Check if data contains numeric values to sum
+        numeric_keys = set()
+        for item in data:
+            for key, value in item.items():
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    numeric_keys.add(key)
+        
+        if not numeric_keys:
+            return False, "No numeric fields found for summing"
+        return True, ""
+        
+    elif query_type == QueryType.AVERAGE_STORE_VISITS:
+        # For distribution, all items should have at least one common field
+        if not data:
+            return False, "Input data is empty"
+            
+        keys_sets = [set(item.keys()) for item in data]
+        common_keys = set.intersection(*keys_sets) if keys_sets else set()
+        
+        if not common_keys:
+            return False, "No common fields across data points for distribution analysis"
+        return True, ""
+        
+    elif query_type == QueryType.AVERAGE_STORE_VISITS:
+        # For correlation, need at least two numeric fields
+        numeric_keys = set()
+        for item in data:
+            for key, value in item.items():
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    numeric_keys.add(key)
+        
+        if len(numeric_keys) < 2:
+            return False, "Need at least two numeric fields for correlation analysis"
+        return True, ""
+        
+    elif query_type == QueryType.AVERAGE_STORE_VISITS:
+        # For trend analysis, need time field and at least one numeric field
+        time_fields = set()
+        numeric_fields = set()
+        
+        for item in data:
+            for key, value in item.items():
+                if key.lower() in ["time", "date", "timestamp"]:
+                    time_fields.add(key)
+                elif isinstance(value, (int, float)) and not isinstance(value, bool):
+                    numeric_fields.add(key)
+        
+        if not time_fields:
+            return False, "No time/date fields found for trend analysis"
+        if not numeric_fields:
+            return False, "No numeric fields found for trend analysis"
+        return True, ""
+        
+    return True, ""  # Default case or CUSTOM type
+
+def validate_privacy_params(privacy_method: PrivacyMethod, privacy_params: Optional[Dict[str, Any]]) -> Tuple[bool, str]:
+    """
+    Validate privacy method parameters.
+    
+    Args:
+        privacy_method: The privacy method to use
+        privacy_params: Parameters for the privacy method
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if privacy_method == PrivacyMethod.DP:
+        if "epsilon" not in privacy_params:
+            return False, "Epsilon parameter is required for differential privacy"
+        
+        epsilon = privacy_params.get("epsilon")
+        if not isinstance(epsilon, (int, float)) or epsilon <= 0:
+            return False, "Epsilon must be a positive number"
+            
+        delta = privacy_params.get("delta", 0)
+        if not isinstance(delta, (int, float)) or delta < 0 or delta >= 1:
+            return False, "Delta must be between 0 and 1"
+            
+        return True, ""
+        
+    elif privacy_method == PrivacyMethod.SMPC:
+        if "min_parties" not in privacy_params:
+            return False, "min_parties parameter is required for SMPC"
+            
+        min_parties = privacy_params.get("min_parties")
+        if not isinstance(min_parties, int) or min_parties < 2:
+            return False, "min_parties must be an integer greater than 1"
+            
+        return True, ""
+    
+    return True, ""
+
+# Check user DSR restrictions
+async def check_dsr_restrictions(db: AsyncSession, user_ids: List[str]) -> Tuple[bool, List[str], str]:
+    """
+    Check if any users in the dataset have processing restrictions from DSR requests.
+    
+    Args:
+        db: Database session
+        user_ids: List of user IDs to check for restrictions
+        
+    Returns:
+        Tuple of (can_process, restricted_users, error_message)
+    """
+    if not user_ids:
+        return True, [], ""
+    
+    # Setup consent ledger service
+    consent_service = ConsentLedgerService(db)
+    
+    restricted_users = []
+    for user_id in user_ids:
+        # Get user consent history
+        user_history = await consent_service.get_user_history(user_id)
+        
+        # Check for DSR restriction events
+        for event in user_history:
+            # Look for system restriction events in metadata
+            metadata = event.consent_metadata or {}
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except:
+                    metadata = {}
+            
+            # Check for restriction requests in the event metadata
+            if metadata.get("dsr_type") == "processing_restriction" and event.action == "dsr_request":
+                restricted_users.append(user_id)
+                break
+                
+            # Also check for global opt-outs with system_restriction offer_id
+            if event.offer_id == "system_restriction" and event.action == "opt_out":
+                restricted_users.append(user_id)
+                break
+    
+    if restricted_users:
+        return False, restricted_users, "Some users have requested processing restrictions"
+    
+    return True, [], ""
+
+# Apply privacy methods to results
+def apply_differential_privacy(
+    data: Dict[str, Any],
+    epsilon: float,
+    delta: float = 1e-5
+) -> Dict[str, Any]:
+    """
+    Apply differential privacy to query results.
+    
+    Args:
+        data: Query results to privatize
+        epsilon: Privacy parameter (smaller = more privacy)
+        delta: Probability of privacy failure
+        
+    Returns:
+        Privatized results
+    """
+    # This is a simplified implementation for demonstration
+    # A production system would use a proper DP library like IBM's diffprivlib or Google's dp-accounting
+    
+    # Calculate sensitivity based on the query type and data
+    sensitivity = 1.0  # Simplified assumption
+    
+    # Add noise to the results
+    noise_scale = sensitivity / epsilon
+    
+    # Apply noise to numeric values
+    private_data = data.copy()
+    for key, value in data.items():
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            # Add Laplace noise
+            noise = np.random.laplace(0, noise_scale)
+            
+            # For counts, round to nearest integer
+            if key == "count" or key.endswith("_count"):
+                private_data[key] = max(0, int(round(value + noise)))
+            else:
+                private_data[key] = value + noise
+                
+    # Add privacy metadata
+    private_data["privacy_metadata"] = {
+        "method": "differential_privacy",
+        "epsilon": epsilon,
+        "delta": delta,
+        "estimated_error_pct": round(noise_scale / max(1, abs(data.get("result", 1))) * 100, 2)
+    }
+    
+    return private_data
+
+async def process_insight(
+    data: List[Dict[str, Any]],
+    query_type: QueryType,
+    privacy_method: PrivacyMethod,
+    privacy_params: Optional[Dict[str, Any]] = None,
+    custom_query: Optional[Dict[str, Any]] = None,
+    validate_consent: bool = True,
+    user_id_field: str = "user_id",
+    db: Optional[AsyncSession] = None
+) -> Dict[str, Any]:
+    """
+    Process an insight request with privacy protection.
+    
+    Args:
+        data: Input data as a list of dictionaries
+        query_type: Type of query to run
+        privacy_method: Privacy method to apply
+        privacy_params: Parameters for the privacy method
+        custom_query: Custom query parameters (for QueryType.CUSTOM)
+        validate_consent: Whether to validate user consent
+        user_id_field: Field name containing user IDs
+        db: Database session for consent checking
+        
+    Returns:
+        Results with privacy applied
+    """
+    start_time = time.time()
+    process_id = os.getpid()
+    
+    # Initialize results dictionary
+    results = {
+        "success": False,
+        "query_type": query_type.value,
+        "privacy_method": privacy_method.value,
+        "timestamp": datetime.now().isoformat(),
+        "result": None,
+        "error": None,
+        "metadata": {
+            "process_id": process_id,
+            "processing_time_ms": 0
+        }
+    }
+    
+    try:
+        # Validate inputs
+        is_valid, error_msg = validate_query_input(data, query_type)
+        if not is_valid:
+            results["error"] = f"Input validation failed: {error_msg}"
+            logger.error(f"Input validation failed: {error_msg}")
+            return results
+            
+        if privacy_method != PrivacyMethod.DP:
+            is_valid, error_msg = validate_privacy_params(privacy_method, privacy_params)
+            if not is_valid:
+                results["error"] = f"Privacy parameters validation failed: {error_msg}"
+                logger.error(f"Privacy validation failed: {error_msg}")
+                return results
+        
+        # If consent validation is enabled, extract user IDs and validate
+        if validate_consent and db:
+            # Extract all user IDs from the data
+            user_ids = list(set(item.get(user_id_field) for item in data if user_id_field in item))
+            
+            # Check for DSR restrictions
+            can_process, restricted_users, restriction_msg = await check_dsr_restrictions(db, user_ids)
+            if not can_process:
+                results["error"] = f"Processing restricted due to DSR: {restriction_msg}"
+                results["metadata"]["restricted_users"] = restricted_users
+                logger.warning(f"Processing restricted due to DSR for users: {restricted_users}")
+                return results
+        
+        # Process query based on type
+        if query_type == QueryType.AVERAGE_STORE_VISITS:
+            result = apply_dp_to_average(data, privacy_params.get("epsilon", 1.0))
+            
+        elif query_type == QueryType.AVERAGE_STORE_VISITS:
+            # Identify numeric fields
+            numeric_keys = set()
+            for item in data:
+                for key, value in item.items():
+                    if isinstance(value, (int, float)) and not isinstance(value, bool):
+                        numeric_keys.add(key)
+            
+            # Calculate averages for each numeric field
+            averages = {}
+            for key in numeric_keys:
+                values = [item.get(key) for item in data if key in item and 
+                          isinstance(item.get(key), (int, float)) and not isinstance(item.get(key), bool)]
+                if values:
+                    averages[key] = sum(values) / len(values)
+            
+            result = {"averages": averages}
+            
+        elif query_type == QueryType.AVERAGE_STORE_VISITS:
+            # Identify numeric fields
+            numeric_keys = set()
+            for item in data:
+                for key, value in item.items():
+                    if isinstance(value, (int, float)) and not isinstance(value, bool):
+                        numeric_keys.add(key)
+            
+            # Calculate sums for each numeric field
+            sums = {}
+            for key in numeric_keys:
+                values = [item.get(key) for item in data if key in item and 
+                          isinstance(item.get(key), (int, float)) and not isinstance(item.get(key), bool)]
+                if values:
+                    sums[key] = sum(values)
+            
+            result = {"sums": sums}
+            
+        elif query_type == QueryType.AVERAGE_STORE_VISITS:
+            # Identify common fields across records
+            keys_sets = [set(item.keys()) for item in data]
+            common_keys = set.intersection(*keys_sets) if keys_sets else set()
+            
+            # Calculate distributions for each common field
+            distributions = {}
+            for key in common_keys:
+                value_counts = {}
+                for item in data:
+                    value = item.get(key)
+                    # Convert complex values to strings for counting
+                    if not isinstance(value, (str, int, float, bool)):
+                        value = str(value)
+                    
+                    if value in value_counts:
+                        value_counts[value] += 1
+                    else:
+                        value_counts[value] = 1
+                
+                distributions[key] = value_counts
+            
+            result = {"distributions": distributions}
+            
+        elif query_type == QueryType.AVERAGE_STORE_VISITS:
+            # To be implemented - would calculate correlation between numeric fields
+            result = {"correlation": "Not implemented yet"}
+            
+        elif query_type == QueryType.AVERAGE_STORE_VISITS:
+            # To be implemented - would analyze trends over time
+            result = {"trend": "Not implemented yet"}
+            
+        elif query_type == QueryType.AVERAGE_STORE_VISITS:
+            # Custom query handling
+            if not custom_query:
+                results["error"] = "Custom query parameters required for custom query type"
+                return results
+                
+            # Process custom query (example implementation)
+            result = {"custom": "Custom query implementation example"}
+        
+        else:
+            results["error"] = f"Unsupported query type: {query_type.value}"
+            return results
+        
+        # Apply privacy method if specified
+        if privacy_method == PrivacyMethod.DP:
+            epsilon = privacy_params.get("epsilon", 1.0)
+            delta = privacy_params.get("delta", 1e-5)
+            result = apply_differential_privacy(result, epsilon, delta)
+            
+        elif privacy_method == PrivacyMethod.SMPC:
+            # Placeholder for SMPC implementation
+            result = result
+            results["metadata"]["privacy"] = {
+                "method": "secure_multiparty_computation",
+                "min_parties": privacy_params.get("min_parties", 3)
+            }
+            
+        else:
+            # Other privacy methods would be implemented here
+            result = result
+            results["metadata"]["privacy"] = {
+                "method": privacy_method.value,
+                "applied": False,
+                "reason": "Method not implemented"
+            }
+        
+        # Update results
+        results["result"] = result
+        results["success"] = True
+        
+    except Exception as e:
+        logger.exception(f"Error processing insight: {str(e)}")
+        results["error"] = f"Processing error: {str(e)}"
+        
+    finally:
+        # Calculate processing time
+        processing_time = (time.time() - start_time) * 1000  # Convert to ms
+        results["metadata"]["processing_time_ms"] = round(processing_time, 2)
+        
+    return results 

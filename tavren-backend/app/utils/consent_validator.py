@@ -3,6 +3,7 @@ from typing import Dict, Tuple, List, Optional, Any
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
+import json
 
 from app.models import ConsentEvent
 from app.services.consent_ledger import ConsentLedgerService, get_consent_ledger_service
@@ -33,6 +34,65 @@ class ConsentValidator:
         """Initialize with database session."""
         self.db = db
     
+    async def check_dsr_restrictions(self, user_id: str) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Check if the user has any DSR-related processing restrictions.
+        
+        Args:
+            user_id: ID of the user to check
+            
+        Returns:
+            Tuple of (has_restrictions, details) where:
+                - has_restrictions: Boolean indicating if processing is restricted
+                - details: Dict with reason and relevant restriction information
+        """
+        log.info(f"Checking DSR restrictions for user {user_id}")
+        
+        # Get the consent ledger service
+        consent_ledger_service = ConsentLedgerService(self.db)
+        
+        # Get user's consent history
+        consent_history = await consent_ledger_service.get_user_history(user_id)
+        
+        if not consent_history:
+            # No history means no restrictions
+            return False, {"status": "no_restrictions"}
+        
+        # Look for DSR-related restrictions
+        for event in consent_history:
+            # Look for system restriction events in metadata
+            metadata = event.consent_metadata or {}
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except:
+                    metadata = {}
+            
+            # Check for restriction requests in the event metadata
+            if metadata.get("dsr_type") == "processing_restriction" and event.action == "dsr_request":
+                return True, {
+                    "status": "restricted",
+                    "reason": "DSR processing restriction",
+                    "restriction_type": "dsr_request",
+                    "applied_at": event.timestamp.isoformat(),
+                    "scope": event.scope or "all",
+                    "restriction_id": event.id
+                }
+            
+            # Also check for global opt-outs with system_restriction offer_id
+            if event.offer_id == "system_restriction" and event.action == "opt_out":
+                return True, {
+                    "status": "restricted",
+                    "reason": "DSR global opt-out",
+                    "restriction_type": "system_restriction",
+                    "applied_at": event.timestamp.isoformat(),
+                    "scope": event.scope or "all",
+                    "restriction_id": event.id
+                }
+        
+        # No restrictions found
+        return False, {"status": "no_restrictions"}
+    
     async def is_processing_allowed(
         self, 
         user_id: str, 
@@ -53,6 +113,16 @@ class ConsentValidator:
                 - details: Dict with reason and relevant consent information
         """
         log.info(f"Validating consent for user {user_id}, scope '{data_scope}', purpose '{purpose}'")
+        
+        # First, check for DSR restrictions which override regular consent
+        has_restrictions, restriction_details = await self.check_dsr_restrictions(user_id)
+        if has_restrictions:
+            log.warning(f"Processing disallowed due to DSR restriction for user {user_id}")
+            return False, {
+                "reason": "Processing restricted due to Data Subject Request",
+                "dsr_details": restriction_details,
+                "user_id": user_id
+            }
         
         # Get the consent ledger service
         consent_ledger_service = ConsentLedgerService(self.db)

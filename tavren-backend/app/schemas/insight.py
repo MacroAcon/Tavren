@@ -20,16 +20,20 @@ class InsightRequest(BaseModel):
     Attributes:
         data: Dataset as CSV string, list of dictionaries, or filename
         query_type: Type of insight query to process
-        pet_method: Privacy-enhancing technology method to use
-        epsilon: Privacy parameter for differential privacy (required if pet_method is "dp")
+        privacy_method: Privacy-enhancing technology method to use
+        epsilon: Privacy parameter for differential privacy (required if privacy_method is "differential_privacy")
+        delta: Optional delta parameter for differential privacy
+        min_parties: Optional minimum number of parties for SMPC
         data_format: Format of the provided data
         user_id: Optional ID of the user whose data is being processed
         purpose: Optional purpose of data processing
     """
     data: str = Field(..., description="Dataset as CSV string, JSON string, or filename")
     query_type: QueryType = Field(..., description="Type of insight query to process")
-    pet_method: PrivacyMethod = Field(..., description="Privacy-enhancing technology method to use")
+    privacy_method: PrivacyMethod = Field(..., description="Privacy-enhancing technology method to use")
     epsilon: Optional[float] = Field(None, description="Privacy parameter for differential privacy")
+    delta: Optional[float] = Field(1e-5, description="Delta parameter for differential privacy")
+    min_parties: Optional[int] = Field(2, description="Minimum number of parties for secure multi-party computation")
     data_format: DataFormat = Field(DataFormat.CSV, description="Format of the provided data")
     user_id: Optional[str] = Field(None, description="ID of the user whose data is being processed")
     purpose: Optional[str] = Field("insight_generation", description="Purpose of data processing (e.g., insight_generation, ad_targeting)")
@@ -37,7 +41,7 @@ class InsightRequest(BaseModel):
     @validator('epsilon')
     def validate_epsilon(cls, v, values):
         """Validate that epsilon is provided if DP method is selected."""
-        if values.get('pet_method') == PrivacyMethod.DP and v is None:
+        if values.get('privacy_method') == PrivacyMethod.DP and v is None:
             raise ValueError("Epsilon is required when using differential privacy")
         return v
 
@@ -47,8 +51,8 @@ class InsightRequest(BaseModel):
             # Convert CSV string to DataFrame
             return pd.read_csv(io.StringIO(self.data))
         elif self.data_format == DataFormat.JSON:
-            # Convert JSON string to list or DataFrame based on PET method
-            if self.pet_method == PrivacyMethod.DP:
+            # Convert JSON string to list or DataFrame based on privacy method
+            if self.privacy_method == PrivacyMethod.DP:
                 # For DP, convert to DataFrame
                 return pd.DataFrame(json.loads(self.data))
             else:
@@ -61,7 +65,7 @@ class InsightRequest(BaseModel):
             elif self.data.endswith('.json'):
                 with open(self.data) as f:
                     data = json.load(f)
-                    if self.pet_method == PrivacyMethod.DP:
+                    if self.privacy_method == PrivacyMethod.DP:
                         return pd.DataFrame(data)
                     return data
             else:

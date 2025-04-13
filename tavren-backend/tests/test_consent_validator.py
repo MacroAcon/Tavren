@@ -77,6 +77,49 @@ MOCK_EVENTS = {
             timestamp=datetime.now() - timedelta(days=1),
             initiated_by="user"
         )
+    ],
+    "dsr_restriction": [
+        MagicMock(
+            id=1,
+            user_id=USER_ID,
+            action="opt_in",
+            scope="all",
+            purpose="all",
+            timestamp=datetime.now() - timedelta(days=10),
+            initiated_by="user"
+        ),
+        MagicMock(
+            id=2,
+            user_id=USER_ID,
+            action="dsr_request",
+            scope="all",
+            purpose="regulatory_compliance",
+            timestamp=datetime.now() - timedelta(days=1),
+            initiated_by="user_dsr",
+            offer_id="dsr_audit",
+            consent_metadata={"dsr_type": "processing_restriction", "restriction_reason": "Test restriction"}
+        )
+    ],
+    "dsr_system_restriction": [
+        MagicMock(
+            id=1,
+            user_id=USER_ID,
+            action="opt_in",
+            scope="all",
+            purpose="all",
+            timestamp=datetime.now() - timedelta(days=10),
+            initiated_by="user"
+        ),
+        MagicMock(
+            id=2,
+            user_id=USER_ID,
+            action="opt_out",
+            scope="all",
+            purpose="all",
+            timestamp=datetime.now() - timedelta(days=1),
+            initiated_by="user_dsr",
+            offer_id="system_restriction"
+        )
     ]
 }
 
@@ -214,4 +257,68 @@ async def test_active_consent_scopes(consent_validator, mock_consent_ledger):
     # Verify
     assert "all" in active_scopes
     assert "all" in active_scopes["all"]
+    mock_consent_ledger.get_user_history.assert_called_once_with(USER_ID)
+
+@pytest.mark.asyncio
+async def test_check_dsr_restrictions_none(consent_validator, mock_consent_ledger):
+    """Test checking DSR restrictions when none exist."""
+    # Setup
+    mock_consent_ledger.get_user_history.return_value = MOCK_EVENTS["valid_consent"]
+    
+    # Execute
+    has_restrictions, details = await consent_validator.check_dsr_restrictions(USER_ID)
+    
+    # Verify
+    assert has_restrictions is False
+    assert details["status"] == "no_restrictions"
+    mock_consent_ledger.get_user_history.assert_called_once_with(USER_ID)
+
+@pytest.mark.asyncio
+async def test_check_dsr_restrictions_exists(consent_validator, mock_consent_ledger):
+    """Test checking DSR restrictions when a processing restriction exists."""
+    # Setup
+    mock_consent_ledger.get_user_history.return_value = MOCK_EVENTS["dsr_restriction"]
+    
+    # Execute
+    has_restrictions, details = await consent_validator.check_dsr_restrictions(USER_ID)
+    
+    # Verify
+    assert has_restrictions is True
+    assert details["status"] == "restricted"
+    assert details["reason"] == "DSR processing restriction"
+    assert details["restriction_type"] == "dsr_request"
+    mock_consent_ledger.get_user_history.assert_called_once_with(USER_ID)
+
+@pytest.mark.asyncio
+async def test_check_dsr_system_restriction(consent_validator, mock_consent_ledger):
+    """Test checking DSR restrictions when a system restriction exists."""
+    # Setup
+    mock_consent_ledger.get_user_history.return_value = MOCK_EVENTS["dsr_system_restriction"]
+    
+    # Execute
+    has_restrictions, details = await consent_validator.check_dsr_restrictions(USER_ID)
+    
+    # Verify
+    assert has_restrictions is True
+    assert details["status"] == "restricted"
+    assert details["reason"] == "DSR global opt-out"
+    assert details["restriction_type"] == "system_restriction"
+    mock_consent_ledger.get_user_history.assert_called_once_with(USER_ID)
+
+@pytest.mark.asyncio
+async def test_is_processing_allowed_with_dsr_restriction(consent_validator, mock_consent_ledger):
+    """Test that DSR restrictions override regular consent validation."""
+    # Setup
+    mock_consent_ledger.get_user_history.return_value = MOCK_EVENTS["dsr_restriction"]
+    
+    # Execute
+    is_allowed, details = await consent_validator.is_processing_allowed(
+        USER_ID, DATA_SCOPE, PURPOSE
+    )
+    
+    # Verify
+    assert is_allowed is False
+    assert "Processing restricted due to Data Subject Request" in details["reason"]
+    assert "dsr_details" in details
+    assert details["dsr_details"]["status"] == "restricted"
     mock_consent_ledger.get_user_history.assert_called_once_with(USER_ID) 

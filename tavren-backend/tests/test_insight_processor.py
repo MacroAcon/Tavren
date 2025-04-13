@@ -1,8 +1,11 @@
 import pytest
 import pandas as pd
 import numpy as np
-from app.utils.insight_processor import process_insight, QueryType, PrivacyMethod
+from app.utils.insight_processor import process_insight, QueryType, PrivacyMethod, check_dsr_restrictions
 from app.utils.consent_validator import ConsentValidator
+from app.services.consent_ledger import ConsentLedgerService
+from unittest.mock import AsyncMock, patch
+from datetime import datetime
 
 # Test constants
 USER_ID = "test_user_123"
@@ -382,4 +385,101 @@ async def test_process_insight_with_validation_error(sample_data, mock_consent_v
     assert "Input validation failed" in result["metadata"]["error"]
     
     # Verify consent validation was not attempted
-    mock_consent_validator.is_processing_allowed.assert_not_called() 
+    mock_consent_validator.is_processing_allowed.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_check_dsr_restrictions_no_restrictions(mock_db):
+    """Test check_dsr_restrictions when no restrictions exist."""
+    # Setup
+    mock_consent_ledger = AsyncMock(spec=ConsentLedgerService)
+    mock_consent_ledger.get_user_history.return_value = []  # No consent history
+    
+    # Mock the ConsentLedgerService constructor
+    with patch('app.utils.insight_processor.ConsentLedgerService', return_value=mock_consent_ledger):
+        # Execute
+        can_process, restricted_users, message = await check_dsr_restrictions(mock_db, ["user1", "user2"])
+        
+        # Verify
+        assert can_process is True
+        assert len(restricted_users) == 0
+        assert message == ""
+        assert mock_consent_ledger.get_user_history.call_count == 2
+
+@pytest.mark.asyncio
+async def test_check_dsr_restrictions_with_restriction(mock_db):
+    """Test check_dsr_restrictions when a restriction exists."""
+    # Setup
+    mock_consent_ledger = AsyncMock(spec=ConsentLedgerService)
+    
+    # Create mock events
+    unrestricted_user_events = []
+    restricted_user_events = [
+        AsyncMock(
+            id=1,
+            user_id="user2",
+            action="dsr_request",
+            offer_id="dsr_audit",
+            consent_metadata={"dsr_type": "processing_restriction"}
+        )
+    ]
+    
+    # Configure mock to return different events for different users
+    mock_consent_ledger.get_user_history.side_effect = lambda user_id: (
+        restricted_user_events if user_id == "user2" else unrestricted_user_events
+    )
+    
+    # Mock the ConsentLedgerService constructor
+    with patch('app.utils.insight_processor.ConsentLedgerService', return_value=mock_consent_ledger):
+        # Execute
+        can_process, restricted_users, message = await check_dsr_restrictions(mock_db, ["user1", "user2"])
+        
+        # Verify
+        assert can_process is False
+        assert len(restricted_users) == 1
+        assert "user2" in restricted_users
+        assert "processing restrictions" in message
+        assert mock_consent_ledger.get_user_history.call_count == 2
+
+@pytest.mark.asyncio
+async def test_process_insight_with_dsr_restrictions(sample_data, mock_db):
+    """Test that process_insight respects DSR restrictions."""
+    # Setup
+    mock_consent_ledger = AsyncMock(spec=ConsentLedgerService)
+    
+    # Create mock events
+    restricted_user_events = [
+        AsyncMock(
+            id=1,
+            user_id="test_user_123",
+            action="opt_out",
+            offer_id="system_restriction",
+            consent_metadata={}
+        )
+    ]
+    
+    # Configure mock to return restricted events for the test user
+    mock_consent_ledger.get_user_history.return_value = restricted_user_events
+    
+    # Add user_id to the sample data
+    sample_data_dict = sample_data.to_dict('records')
+    
+    # Mock the ConsentLedgerService constructor
+    with patch('app.utils.insight_processor.ConsentLedgerService', return_value=mock_consent_ledger):
+        # Execute
+        result = await process_insight(
+            data=sample_data_dict,
+            query_type=QueryType.AVERAGE_STORE_VISITS,
+            privacy_method=PrivacyMethod.DP,
+            privacy_params={"epsilon": 1.0},
+            validate_consent=True,
+            db=mock_db,
+            user_id_field='user_id'
+        )
+        
+        # Verify
+        assert result["success"] is False
+        assert "error" in result
+        assert "Processing restricted due to DSR" in result["error"]
+        assert "restricted_users" in result["metadata"]
+        assert "test_user_123" in result["metadata"]["restricted_users"]
+        assert mock_consent_ledger.get_user_history.called 

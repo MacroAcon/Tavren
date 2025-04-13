@@ -6,6 +6,7 @@ from .agent import agent_router
 from .data_packaging import data_packaging_router
 from .users import router as user_router
 from .insight import insight_router
+from .dsr import dsr_router
 
 __all__ = [
     'static_router',
@@ -17,5 +18,6 @@ __all__ = [
     'agent_router',
     'data_packaging_router',
     'user_router',
-    'insight_router'
+    'insight_router',
+    'dsr_router'
 ]
