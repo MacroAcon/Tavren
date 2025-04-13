@@ -11,6 +11,7 @@ from .database import get_db, async_engine
 from .models import Base
 # from .database import engine # Remove sync engine import
 from .config import settings, setup_logging
+from .middleware import RateLimitHeaderMiddleware, RequestTimingMiddleware
 
 # Import routers
 from .routers import (
@@ -70,6 +71,10 @@ async def startup_event():
 # Apply Rate Limiter to App
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Add custom middleware
+app.add_middleware(RequestTimingMiddleware)
+app.add_middleware(RateLimitHeaderMiddleware)
 
 # Register exception handlers
 register_exception_handlers(app)

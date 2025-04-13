@@ -5,7 +5,7 @@ Provides endpoints for creating embeddings, indexing data packages, and semantic
 
 import logging
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Body, Path, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -21,6 +21,14 @@ from app.schemas import (
     QueryExpansionRequest, QueryExpansionResponse,
     FacetedSearchRequest, FacetedSearchResponse
 )
+from app.utils.rate_limit import (
+    default_rate_limit, 
+    search_rate_limit, 
+    complex_search_rate_limit, 
+    embedding_creation_rate_limit
+)
+from app.utils.error_handling import get_safe_error_message
+from app.config import settings
 
 # Set up logging
 log = logging.getLogger("app")
@@ -34,9 +42,11 @@ embedding_router = APIRouter(
 @embedding_router.post("/create", response_model=Dict[str, Any])
 async def create_embedding(
     request: EmbeddingRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(embedding_creation_rate_limit)
 ):
     """
     Create an embedding for text or a data package.
@@ -67,14 +77,17 @@ async def create_embedding(
         
     except Exception as e:
         log.error(f"Error creating embedding: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error creating embedding: {str(e)}")
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @embedding_router.post("/index-package", response_model=IndexPackageResponse)
 async def index_data_package(
     request: IndexPackageRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(embedding_creation_rate_limit)
 ):
     """
     Index a data package for semantic search.
@@ -98,14 +111,17 @@ async def index_data_package(
         
     except Exception as e:
         log.error(f"Error indexing data package: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error indexing data package: {str(e)}")
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @embedding_router.post("/search", response_model=VectorSearchResponse)
 async def vector_search(
     request: VectorSearchRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(search_rate_limit)
 ):
     """
     Perform semantic vector search.
@@ -136,14 +152,17 @@ async def vector_search(
         
     except Exception as e:
         log.error(f"Error performing vector search: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error performing vector search: {str(e)}")
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @embedding_router.post("/retrieve-context", response_model=RAGResponse)
 async def retrieve_context(
     request: RAGRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(search_rate_limit)
 ):
     """
     Retrieve context for retrieval augmented generation (RAG).
@@ -168,14 +187,17 @@ async def retrieve_context(
         
     except Exception as e:
         log.error(f"Error retrieving context: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving context: {str(e)}")
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @embedding_router.get("/{embedding_id}", response_model=Dict[str, Any])
 async def get_embedding(
     embedding_id: int = Path(..., description="The ID of the embedding to retrieve"),
+    req: Request = None,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(default_rate_limit)
 ):
     """
     Get an embedding by ID.
@@ -200,15 +222,18 @@ async def get_embedding(
         raise
     except Exception as e:
         log.error(f"Error retrieving embedding: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving embedding: {str(e)}")
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @embedding_router.get("/package/{package_id}/{embedding_type}", response_model=Dict[str, Any])
 async def get_package_embedding(
     package_id: str = Path(..., description="The ID of the package"),
     embedding_type: str = Path(..., description="The type of embedding to retrieve"),
+    req: Request = None,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(default_rate_limit)
 ):
     """
     Get an embedding for a package by type.
@@ -239,14 +264,17 @@ async def get_package_embedding(
         raise
     except Exception as e:
         log.error(f"Error retrieving package embedding: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving package embedding: {str(e)}")
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @embedding_router.post("/hybrid-search", response_model=HybridSearchResponse)
 async def hybrid_search(
     request: HybridSearchRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(complex_search_rate_limit)
 ):
     """
     Perform hybrid search combining semantic and keyword matching.
@@ -282,14 +310,17 @@ async def hybrid_search(
         
     except Exception as e:
         log.error(f"Error performing hybrid search: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error performing hybrid search: {str(e)}")
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @embedding_router.post("/cross-package-context", response_model=CrossPackageContextResponse)
 async def cross_package_context(
     request: CrossPackageContextRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(complex_search_rate_limit)
 ):
     """
     Assemble context from multiple data packages for complex queries.
@@ -318,14 +349,17 @@ async def cross_package_context(
         
     except Exception as e:
         log.error(f"Error assembling cross-package context: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error assembling cross-package context: {str(e)}")
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @embedding_router.post("/query-expansion", response_model=QueryExpansionResponse)
 async def query_expansion_search(
     request: QueryExpansionRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(complex_search_rate_limit)
 ):
     """
     Enhance search by automatically expanding the query with related terms.
@@ -352,14 +386,17 @@ async def query_expansion_search(
         
     except Exception as e:
         log.error(f"Error performing query expansion search: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error performing query expansion search: {str(e)}")
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @embedding_router.post("/faceted-search", response_model=FacetedSearchResponse)
 async def faceted_search(
     request: FacetedSearchRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
-    current_user: UserDisplay = Depends(get_current_active_user)
+    current_user: UserDisplay = Depends(get_current_active_user),
+    rate_limit: None = Depends(complex_search_rate_limit)
 ):
     """
     Perform faceted search that combines semantic search with metadata filtering.
@@ -387,4 +424,5 @@ async def faceted_search(
         
     except Exception as e:
         log.error(f"Error performing faceted search: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error performing faceted search: {str(e)}") 
+        error_msg = get_safe_error_message(e, is_dev_env=settings.DEBUG)
+        raise HTTPException(status_code=500, detail=error_msg) 
