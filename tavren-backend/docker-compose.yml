@@ -7,8 +7,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      POSTGRES_USER: ${POSTGRES_USER_SECRET:-tavren_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_SECRET:-tavren_password}
+      POSTGRES_USER: ${POSTGRES_USER_SECRET}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_SECRET}
       POSTGRES_DB: tavren_db
     # SECURITY: Database ports are not exposed to the host to prevent unauthorized access
     # For local development, use one of these alternatives instead of direct port exposure:
@@ -21,7 +21,7 @@ services:
     networks:
       - tavren_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_SECRET:-tavren_user} -d tavren_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_SECRET} -d tavren_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,18 +39,20 @@ services:
       - "8000:8000"
     environment:
       # Use the service name 'db' as the host for the database connection
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER_SECRET:-tavren_user}:${POSTGRES_PASSWORD_SECRET:-tavren_password}@db:5432/tavren_db
-      LOG_LEVEL: DEBUG # Use DEBUG level for development
-      MINIMUM_PAYOUT_THRESHOLD: ${MINIMUM_PAYOUT_THRESHOLD:-5.00} # Use host env var or default
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER_SECRET}:${POSTGRES_PASSWORD_SECRET}@db:5432/tavren_db
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MINIMUM_PAYOUT_THRESHOLD: ${MINIMUM_PAYOUT_THRESHOLD:-5.00}
       STATIC_DIR: /app/app/static
       # Security settings
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY}
       ADMIN_API_KEY: ${ADMIN_API_KEY}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-      # Variables needed for automatic payout checks (adjust as needed)
+      # Variables needed for automatic payout checks
       AUTO_PAYOUT_MIN_TRUST_SCORE: ${AUTO_PAYOUT_MIN_TRUST_SCORE:-50.0}
       AUTO_PAYOUT_MAX_AMOUNT: ${AUTO_PAYOUT_MAX_AMOUNT:-100.0}
+      # Environment indicator
+      ENVIRONMENT: ${ENVIRONMENT:-development}
     depends_on:
       - db
     networks:
@@ -64,9 +66,9 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-tavren_redis_password}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -80,23 +82,24 @@ networks:
     driver: bridge
 
 # Instructions for using environment variables:
-# 1. Create a .env file in the same directory as this docker-compose.yml with the following variables:
-#    POSTGRES_USER_SECRET=your_secure_username
-#    POSTGRES_PASSWORD_SECRET=your_secure_password
-#    JWT_SECRET_KEY=your_jwt_secret (run `openssl rand -hex 32` to generate)
-#    DATA_ENCRYPTION_KEY=your_encryption_key (run `openssl rand -hex 16` to generate)
-#    ADMIN_API_KEY=your_admin_api_key (run `openssl rand -hex 24` to generate)
-#    ACCESS_TOKEN_EXPIRE_MINUTES=30 (adjust as needed for security vs. user experience)
-# 
-# 2. For production environments, consider using Docker secrets instead:
-#    secrets:
-#      postgres_user:
-#        file: ./secrets/postgres_user.txt
-#      postgres_password:
-#        file: ./secrets/postgres_password.txt
+# 1. Copy .env.docker.example to .env.docker and fill in secure values:
+#    ./scripts/generate_docker_secrets.sh
+#
+# 2. For local development:
+#    docker-compose --env-file .env.docker up -d
+#
+# 3. For production deployment:
+#    - Review security settings using: ./scripts/check_docker_security.sh
+#    - Use secure environment variables with no defaults
+#    - Consider using Docker Secrets for production:
+#      secrets:
+#        postgres_user:
+#          file: ./secrets/postgres_user.txt
+#        postgres_password:
+#          file: ./secrets/postgres_password.txt
 #    
-#    And then reference them in the service:
-#    db:
-#      environment:
-#        POSTGRES_USER_FILE: /run/secrets/postgres_user
-#        POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password 
+#      And reference them in services:
+#      db:
+#        environment:
+#          POSTGRES_USER_FILE: /run/secrets/postgres_user
+#          POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password 
