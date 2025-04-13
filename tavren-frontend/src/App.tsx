@@ -9,6 +9,12 @@ import DataPackageHistory from './components/DataPackageHistory';
 import TrustVisualization from './components/TrustVisualization';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import NotificationSystem from './components/shared/NotificationSystem';
+import { 
+  WalletDashboard, 
+  PaymentMethodManagement, 
+  TransactionHistory, 
+  PayoutSettings 
+} from './components/wallet';
 
 // Import from our new stores
 import { 
@@ -58,6 +64,7 @@ function App() {
                 <Link to="/data-packages">Data Packages</Link>
                 <Link to="/trust">Trust Visualizer</Link>
                 <Link to="/agent-exchanges">Agent Exchanges</Link>
+                <Link to="/wallet">Wallet</Link>
               </nav>
               <button onClick={logout} className="logout-button">
                 Logout
@@ -94,6 +101,10 @@ function App() {
                       <h3>Trust Visualization</h3>
                       <p>Explore buyer trust metrics and privacy implications</p>
                     </div>
+                    <div className="dashboard-card" onClick={() => window.location.href = '/wallet'}>
+                      <h3>Your Wallet</h3>
+                      <p>Manage earnings, payment methods and payouts</p>
+                    </div>
                   </div>
                 </div>
               } />
@@ -104,6 +115,12 @@ function App() {
               <Route path="/agent-exchanges" element={<AgentExchangeHistory userId={userId} />} />
               <Route path="/agent-exchanges/:exchangeId" element={<AgentExchangeDetail />} />
               <Route path="/onboarding" element={<OnboardingFlow onComplete={handleOnboardingComplete} />} />
+              
+              {/* Wallet Routes */}
+              <Route path="/wallet" element={<WalletDashboard />} />
+              <Route path="/wallet/payment-methods" element={<PaymentMethodManagement />} />
+              <Route path="/wallet/transactions" element={<TransactionHistory />} />
+              <Route path="/wallet/payout-settings" element={<PayoutSettings />} />
             </Routes>
           )}
         </main>

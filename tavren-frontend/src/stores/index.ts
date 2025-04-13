@@ -40,4 +40,16 @@ export {
   selectPayoutSettings,
   selectTheme
 } from './preferencesStore';
-export type { PreferencesState } from './preferencesStore'; 
+export type { PreferencesState } from './preferencesStore';
+
+// Wallet store
+export {
+  useWalletStore,
+  selectBalance,
+  selectTransactions,
+  selectPaymentMethods,
+  selectWalletSummary,
+  selectIsLoadingWallet,
+  selectDefaultPaymentMethod
+} from './walletStore';
+export type { WalletState } from './walletStore'; 
