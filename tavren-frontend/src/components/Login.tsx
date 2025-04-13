@@ -1,25 +1,23 @@
 import React, { useState } from 'react';
-import { useAuth } from '../AuthContext';
+import { useAuthStore, notifySuccess, notifyError } from '../stores';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const { login } = useAuth();
+  const login = useAuthStore(state => state.login);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Basic validation
     if (!username || !password) {
-      setError('Please enter both username and password');
+      notifyError('Please enter both username and password');
       return;
     }
     
     setIsLoading(true);
-    setError('');
     
     try {
       // Send login request to the API
@@ -35,7 +33,7 @@ const Login = () => {
       });
       
       if (!response.ok) {
-        setError('Failed to log in. Please check your credentials.');
+        notifyError('Failed to log in. Please check your credentials.');
         setIsLoading(false);
         return;
       }
@@ -43,14 +41,15 @@ const Login = () => {
       // Parse the response to get the tokens
       const tokens = await response.json();
       
-      // Use the login function from AuthContext
+      // Use the login function from the auth store
       login(tokens);
       
-      // Redirect or perform other actions after successful login
-      // For example: navigate('/dashboard');
+      // Notify successful login
+      notifySuccess(`Welcome, ${username}!`);
+      
     } catch (err) {
       console.error('Login error:', err);
-      setError('An error occurred during login. Please try again.');
+      notifyError('An error occurred during login. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -59,8 +58,6 @@ const Login = () => {
   return (
     <div className="login-container">
       <h2>Log In</h2>
-      
-      {error && <div className="error-message">{error}</div>}
       
       <form onSubmit={handleSubmit}>
         <div className="form-group">

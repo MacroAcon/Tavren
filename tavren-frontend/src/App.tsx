@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { useAuth } from './AuthContext';
 import Login from './components/Login';
 import AgentExchangeHistory from './components/AgentExchangeHistory';
 import AgentExchangeDetail from './components/AgentExchangeDetail';
@@ -9,19 +8,36 @@ import AgentInteractionInterface from './components/AgentInteractionInterface';
 import DataPackageHistory from './components/DataPackageHistory';
 import TrustVisualization from './components/TrustVisualization';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
+import NotificationSystem from './components/shared/NotificationSystem';
+
+// Import from our new stores
+import { 
+  useAuthStore, 
+  useOnboardingStore,
+  notifyInfo
+} from './stores';
 
 function App() {
-  const { isAuthenticated, user, logout } = useAuth();
+  // Use auth store instead of AuthContext
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const user = useAuthStore(state => state.user);
+  const logout = useAuthStore(state => state.logout);
 
-  // State to track if user has completed onboarding
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = React.useState(() => {
-    // Check localStorage to see if user has completed onboarding
-    return localStorage.getItem('onboardingCompleted') === 'true';
-  });
+  // Use onboarding store instead of local state
+  const isOnboardingCompleted = useOnboardingStore(state => state.isCompleted);
+  const setOnboardingCompleted = useOnboardingStore(state => state.setCompleted);
+
+  // This effect runs once on mount, you could add onboarding completion logic here if needed
+  useEffect(() => {
+    // Example notification when the app loads
+    if (isAuthenticated) {
+      notifyInfo('Welcome back to Tavren!');
+    }
+  }, [isAuthenticated]);
 
   const handleOnboardingComplete = () => {
-    localStorage.setItem('onboardingCompleted', 'true');
-    setHasCompletedOnboarding(true);
+    setOnboardingCompleted(true);
+    notifyInfo('Onboarding completed successfully!');
   };
 
   // Default ID for testing or when user is not fully loaded
@@ -33,7 +49,7 @@ function App() {
       <div className="app-container">
         <header>
           <h1>Tavren Data Management</h1>
-          {isAuthenticated && hasCompletedOnboarding && (
+          {isAuthenticated && isOnboardingCompleted && (
             <div className="header-controls">
               <nav>
                 <Link to="/">Dashboard</Link>
@@ -53,7 +69,7 @@ function App() {
         <main>
           {!isAuthenticated ? (
             <Login />
-          ) : !hasCompletedOnboarding ? (
+          ) : !isOnboardingCompleted ? (
             <OnboardingFlow onComplete={handleOnboardingComplete} />
           ) : (
             <Routes>
@@ -91,6 +107,9 @@ function App() {
             </Routes>
           )}
         </main>
+
+        {/* Notification System */}
+        <NotificationSystem />
       </div>
     </Router>
   );
