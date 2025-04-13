@@ -1,0 +1,26 @@
+services:
+  # FastAPI backend web service
+  - type: web
+    name: tavren-api
+    env: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host=0.0.0.0 --port=10000
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Allow manual setting in Render dashboard
+      - key: API_SECRET
+        sync: false # Generate a secure key for production
+    # Uncomment to use Render's PostgreSQL (optional)
+    # - key: DATABASE_URL
+    #   fromDatabase:
+    #     name: tavren-postgres
+    #     property: connectionString
+
+# Uncomment to create a PostgreSQL database on Render
+# databases:
+#   - name: tavren-postgres
+#     plan: free
+#     databaseName: tavren
+#     user: tavren_user 
