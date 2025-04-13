@@ -56,9 +56,9 @@ Tavren is built to be emotionally resonant, market-accessible, and structured en
 
 * Zero-friction onboarding (1-click plan acceptance)
 
-* Simulated AI “Privacy Scan” that earns trust
+* Simulated AI "Privacy Scan" that earns trust
 
-* Clear benefit upfront (“Earn $2.25 this week”)
+* Clear benefit upfront ("Earn $2.25 this week")
 
 * Feels like **a place**, not just an app (tavern metaphor)
 
@@ -116,6 +116,8 @@ Pandacea enables decentralized, edge-first systems where:
 
 ## **⚡ Key Differences Between Tavren and Pandacea**
 
+<!-- Full comparison data available in data/system_diffs.json -->
+
 | Dimension | Tavren | Pandacea |
 | ----- | ----- | ----- |
 | **Type** | Venture product | Open protocol ecosystem |
@@ -123,7 +125,7 @@ Pandacea enables decentralized, edge-first systems where:
 | **Privacy Model** | Centralized consent tiers | Edge-native consent genome \+ agent negotiation |
 | **Compensation** | Flat, visible rewards ($ per action) | Long-tail microtransaction loops via agent economy |
 | **Users** | Mainstream consumers | Developers, researchers, agent builders |
-| **Tone** | Communal, warm, punchy (“The next round is on them”) | Ethical, infrastructural, sovereignty-first |
+| **Tone** | Communal, warm, punchy ("The next round is on them") | Ethical, infrastructural, sovereignty-first |
 | **Governance** | Internal team \+ investor-aligned | Progressive decentralization w/ working groups |
 | **Reward Logic** | Reward-first, consent-enforced | Consent-first, reward-negotiated |
 | **Data Control** | Opt-in via UI flow | Always-local enforcement with optional agent trust |
@@ -142,6 +144,8 @@ Pandacea enables decentralized, edge-first systems where:
 ---
 
 ## **🔗 Developer/Builder Considerations**
+
+<!-- For document templates and section formats, see docs/_fragments/document_templates.md -->
 
 When starting a new thread to continue Tavren development:
 

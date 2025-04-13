@@ -34,6 +34,8 @@ from app.routers import users, data, consent, payment, embeddings, evaluation
 
 # Import exception handlers
 from .exceptions import register_exception_handlers
+# Import new centralized error handlers
+from .errors import get_exception_handlers
 
 # Call logging setup early
 setup_logging()
@@ -76,8 +78,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(RequestTimingMiddleware)
 app.add_middleware(RateLimitHeaderMiddleware)
 
-# Register exception handlers
+# Register old exception handlers (legacy)
 register_exception_handlers(app)
+
+# Register new centralized exception handlers
+for exception_class, handler in get_exception_handlers().items():
+    app.add_exception_handler(exception_class, handler)
 
 # Mount the static directory
 if not settings.STATIC_DIR.is_dir():

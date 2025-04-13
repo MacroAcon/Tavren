@@ -1,0 +1,97 @@
+{
+  "comparison": {
+    "title": "Core Differences Between Tavren and Pandacea",
+    "description": "Key architectural and conceptual differences between the two systems",
+    "dimensions": [
+      {
+        "name": "Type",
+        "tavren": "Venture product",
+        "pandacea": "Open protocol ecosystem"
+      },
+      {
+        "name": "Time Horizon",
+        "tavren": "12-36 months to market scale",
+        "pandacea": "5-10 year trajectory"
+      },
+      {
+        "name": "Privacy Model",
+        "tavren": "Centralized consent tiers",
+        "pandacea": "Edge-native consent genome + agent negotiation"
+      },
+      {
+        "name": "Compensation",
+        "tavren": "Flat, visible rewards ($ per action)",
+        "pandacea": "Long-tail microtransaction loops via agent economy"
+      },
+      {
+        "name": "Users",
+        "tavren": "Mainstream consumers",
+        "pandacea": "Developers, researchers, agent builders"
+      },
+      {
+        "name": "Tone",
+        "tavren": "Communal, warm, punchy ('The next round is on them')",
+        "pandacea": "Ethical, infrastructural, sovereignty-first"
+      },
+      {
+        "name": "Governance",
+        "tavren": "Internal team + investor-aligned",
+        "pandacea": "Progressive decentralization w/ working groups"
+      },
+      {
+        "name": "Reward Logic",
+        "tavren": "Reward-first, consent-enforced",
+        "pandacea": "Consent-first, reward-negotiated"
+      },
+      {
+        "name": "Data Control",
+        "tavren": "Opt-in via UI flow",
+        "pandacea": "Always-local enforcement with optional agent trust"
+      },
+      {
+        "name": "Agent Focus",
+        "tavren": "Outputs useful data for training aligned agents",
+        "pandacea": "Governs and enables agent behavior directly"
+      }
+    ],
+    "technical": {
+      "tavren": {
+        "stack": [
+          "Frontend: React/React Native",
+          "Backend: FastAPI (Python)",
+          "Database: PostgreSQL",
+          "Cache: Redis",
+          "Auth: Magic link/OAuth2",
+          "Payments: Stripe"
+        ]
+      },
+      "pandacea": {
+        "stack": [
+          "Protocol: Model Context Protocol (MCP)",
+          "Storage: Edge-native",
+          "Agents: Consent Manager, Sentinel, Audit Twin",
+          "Coordination: Stateless cloud layer",
+          "Trust: Access Commons"
+        ]
+      }
+    },
+    "priorities": {
+      "tavren": [
+        "Fast iteration",
+        "User experience",
+        "Market fit",
+        "Revenue generation",
+        "Clear compensation",
+        "Simple design"
+      ],
+      "pandacea": [
+        "Protocol purity",
+        "Decentralization",
+        "Auditability",
+        "Agent-native design",
+        "User sovereignty",
+        "Long-term vision"
+      ]
+    }
+  }
+} 

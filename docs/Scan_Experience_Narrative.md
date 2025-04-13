@@ -12,6 +12,8 @@ The scan experience is designed to:
 
 ## Flow Sequence
 
+<!-- For complete flow template, see docs/_fragments/document_templates.md#experience-flow-template -->
+
 ### 1. Welcome Screen
 - Warm, inviting interface
 - Clear value proposition
@@ -23,6 +25,8 @@ The scan experience is designed to:
 - Quick analysis animation
 - Non-intrusive process
 - Immediate results
+
+<!-- Additional flow steps follow the same pattern as above, see full template for reference -->
 
 ### 3. Results Presentation
 - Visual data summary
@@ -37,6 +41,7 @@ The scan experience is designed to:
 - No pressure tactics
 
 ### 5. Consent Process
+<!-- For consent definition details, see docs/_fragments/consent_patterns.md#standard-consent-flow -->
 - Step-by-step guidance
 - Clear explanations
 - Easy opt-out options

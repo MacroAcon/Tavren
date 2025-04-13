@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import logging
 from typing import List
-from datetime import datetime
 
 from app.database import get_db
 from app.models import Reward, PayoutRequest
@@ -26,6 +25,14 @@ from app.exceptions import (
 )
 from app.config import settings
 from app.auth import get_current_active_user
+from app.utils.response_utils import handle_exception
+from app.utils.db_utils import get_by_id_or_404, safe_commit
+from app.logging.log_utils import log_api_request, log_exception
+from app.constants.status import HTTP_500_INTERNAL_SERVER_ERROR
+from app.constants.payment import (
+    PAYOUT_STATUS_PENDING,
+    PAYOUT_STATUS_FAILED
+)
 
 # Get logger
 log = logging.getLogger("app")
@@ -43,25 +50,26 @@ async def create_reward(reward: RewardCreate, db: AsyncSession = Depends(get_db)
     
     This endpoint records when a user earns a reward for a consent action.
     """
+    log_api_request(endpoint="/api/rewards", method="POST", params=reward.dict())
     log.info(f"Creating reward of {reward.amount} for user {reward.user_id}")
     
     try:
         db_reward = Reward(**reward.dict())
         db.add(db_reward)
-        await db.commit()
+        await safe_commit(db)
         await db.refresh(db_reward)
         log.info(f"Reward {db_reward.id} created successfully")
         return db_reward
     except Exception as e:
-        await db.rollback()
-        log.error(f"Failed to create reward: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error creating reward.")
+        log_exception(e, context="create_reward", user_id=reward.user_id)
+        handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error creating reward.")
 
 @reward_router.get("/history/{user_id}", response_model=List[RewardDisplay])
 async def get_reward_history(user_id: str, db: AsyncSession = Depends(get_db)):
     """
     Get reward history for a specific user.
     """
+    log_api_request(endpoint=f"/api/rewards/history/{user_id}", method="GET")
     log.info(f"Getting reward history for user {user_id}")
     
     try:
@@ -71,8 +79,8 @@ async def get_reward_history(user_id: str, db: AsyncSession = Depends(get_db)):
         log.info(f"Found {len(rewards)} rewards for user {user_id}")
         return rewards
     except Exception as e:
-        log.error(f"Failed to get reward history: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error fetching reward history.")
+        log_exception(e, context="get_reward_history", user_id=user_id)
+        handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error fetching reward history.")
 
 # Create router for wallet
 wallet_router = APIRouter(
@@ -88,6 +96,7 @@ async def get_wallet_balance(user_id: str, db: AsyncSession = Depends(get_db)):
     This endpoint calculates a user's total earnings, claimed amount,
     and available balance, as well as whether they can make a payout claim.
     """
+    log_api_request(endpoint=f"/api/wallet/{user_id}", method="GET")
     log.info(f"Getting wallet balance for user {user_id}")
     
     try:
@@ -109,8 +118,8 @@ async def get_wallet_balance(user_id: str, db: AsyncSession = Depends(get_db)):
         log.info(f"User {user_id} wallet balance: ${wallet_balance.available_balance:.2f}, claimable: {wallet_balance.is_claimable}")
         return wallet_balance
     except Exception as e:
-        log.error(f"Failed to get wallet balance: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error fetching wallet balance.")
+        log_exception(e, context="get_wallet_balance", user_id=user_id)
+        handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error fetching wallet balance.")
 
 @wallet_router.post("/claim", response_model=PayoutRequestDisplay)
 async def request_payout(request: PayoutRequestCreate, db: AsyncSession = Depends(get_db)):
@@ -120,6 +129,7 @@ async def request_payout(request: PayoutRequestCreate, db: AsyncSession = Depend
     This endpoint allows users to claim their available balance.
     Uses WalletService to handle creation logic.
     """
+    log_api_request(endpoint="/api/wallet/claim", method="POST", params=request.dict())
     log.info(f"Processing payout request of ${request.amount} for user {request.user_id}")
     
     try:
@@ -133,15 +143,15 @@ async def request_payout(request: PayoutRequestCreate, db: AsyncSession = Depend
         raise
     except Exception as e:
         # Catch unexpected errors during service call
-        log.error(f"Failed to create payout request via service: {e}", exc_info=True)
-        # Rollback is handled within the service method if commit fails
-        raise HTTPException(status_code=500, detail="Internal server error creating payout request.")
+        log_exception(e, context="request_payout", user_id=request.user_id)
+        handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error creating payout request.")
 
 @wallet_router.get("/payouts/{user_id}", response_model=List[PayoutRequestDisplay])
 async def get_payout_history(user_id: str, db: AsyncSession = Depends(get_db)):
     """
     Get payout history for a specific user.
     """
+    log_api_request(endpoint=f"/api/wallet/payouts/{user_id}", method="GET")
     log.info(f"Getting payout history for user {user_id}")
     
     try:
@@ -151,8 +161,8 @@ async def get_payout_history(user_id: str, db: AsyncSession = Depends(get_db)):
         log.info(f"Found {len(payouts)} payout requests for user {user_id}")
         return payouts
     except Exception as e:
-        log.error(f"Failed to get payout history: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error fetching payout history.")
+        log_exception(e, context="get_payout_history", user_id=user_id)
+        handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error fetching payout history.")
 
 # Create router for payout administration
 payout_router = APIRouter(
@@ -167,13 +177,14 @@ async def mark_payout_paid(payout_id: int, db: AsyncSession = Depends(get_db), c
     
     This endpoint is for administrators to confirm a payout has been processed.
     """
+    log_api_request(endpoint=f"/api/payouts/{payout_id}/mark-paid", method="POST")
     log.info(f"Marking payout {payout_id} as paid")
     
     try:
         wallet_service = WalletService(db)
         payout = await wallet_service.get_payout_request_or_404(payout_id)
         
-        if payout.status != "pending":
+        if payout.status != PAYOUT_STATUS_PENDING:
             log.warning(f"Cannot mark payout {payout_id} as paid - current status: {payout.status}")
             raise InvalidStatusTransitionError(f"Cannot mark payout as paid. Current status: {payout.status}")
         
@@ -184,8 +195,8 @@ async def mark_payout_paid(payout_id: int, db: AsyncSession = Depends(get_db), c
         # Already handled with appropriate status code
         raise
     except Exception as e:
-        log.error(f"Failed to mark payout {payout_id} as paid: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to mark payout {payout_id} as paid.")
+        log_exception(e, context=f"mark_payout_paid: {payout_id}")
+        handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to mark payout {payout_id} as paid.")
 
 @payout_router.post("/{payout_id}/mark-failed", response_model=PayoutRequestDisplay)
 async def mark_payout_failed(payout_id: int, db: AsyncSession = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
@@ -194,20 +205,21 @@ async def mark_payout_failed(payout_id: int, db: AsyncSession = Depends(get_db),
     
     This endpoint is for administrators to indicate a payout processing failure.
     """
+    log_api_request(endpoint=f"/api/payouts/{payout_id}/mark-failed", method="POST")
     log.info(f"Marking payout {payout_id} as failed")
     
     try:
         wallet_service = WalletService(db)
         payout = await wallet_service.get_payout_request_or_404(payout_id)
         
-        if payout.status != "pending":
+        if payout.status != PAYOUT_STATUS_PENDING:
             log.warning(f"Cannot mark payout {payout_id} as failed - current status: {payout.status}")
             raise InvalidStatusTransitionError(f"Cannot mark payout as failed. Current status: {payout.status}")
         
         # Update payout status to failed
-        payout.status = "failed"
+        payout.status = PAYOUT_STATUS_FAILED
         db.add(payout)
-        await db.commit()
+        await safe_commit(db)
         await db.refresh(payout)
         
         log.info(f"Payout {payout_id} marked as failed")
@@ -216,15 +228,15 @@ async def mark_payout_failed(payout_id: int, db: AsyncSession = Depends(get_db),
         # Already handled with appropriate status code
         raise
     except Exception as e:
-        await db.rollback()
-        log.error(f"Failed to mark payout {payout_id} as failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to mark payout {payout_id} as failed.")
+        log_exception(e, context=f"mark_payout_failed: {payout_id}")
+        handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to mark payout {payout_id} as failed.")
 
 @payout_router.post("/process-auto", response_model=AutoProcessSummary)
 async def process_automatic_payouts(db: AsyncSession = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
     """
     Process pending payouts automatically using PayoutService.
     """
+    log_api_request(endpoint="/api/payouts/process-auto", method="POST")
     log.info("Endpoint triggered for automatic payout processing")
 
     try:
@@ -234,8 +246,8 @@ async def process_automatic_payouts(db: AsyncSession = Depends(get_db), current_
         return summary
     except PayoutProcessingError as e:
         # Handle specific processing errors if needed, otherwise re-raise or convert
-        log.error(f"Payout processing failed: {e.detail}", exc_info=True)
-        raise HTTPException(status_code=500, detail=e.detail)
+        log_exception(e, context="process_automatic_payouts")
+        raise
     except Exception as e:
-        log.error(f"Unexpected error during automatic payout endpoint: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Unexpected internal server error during automatic payout.") 
+        log_exception(e, context="process_automatic_payouts")
+        handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Unexpected internal server error during automatic payout.") 

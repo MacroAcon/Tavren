@@ -23,6 +23,7 @@ How the incentive relates to the data's value
 
 Implement a granular consent system with:
 
+<!-- For detailed consent requirements, see docs/_fragments/consent_patterns.md#consent-definitions -->
 Explicit opt-in (no pre-checked boxes)
 Purpose-specific consent options
 Clear presentation of terms before consent is given
@@ -45,6 +46,7 @@ Tracking compensation history
 
 4. Technical Architecture Requirements
 
+<!-- For Consent Ledger details, see docs/_fragments/consent_patterns.md#consent-infrastructure -->
 Consent Ledger:
 
 Record User ID, Data Category, Purpose, Consent Status
@@ -82,6 +84,7 @@ Confirmation mechanism for completed actions
 
 2. Jurisdiction-Specific Implementations
 
+<!-- For detailed compliance matrix, see data/compliance_matrix.csv -->
 US/California:
 
 Develop and document data valuation methodology

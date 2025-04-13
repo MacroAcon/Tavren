@@ -1,0 +1,16 @@
+Requirement,GDPR,CCPA/CPRA,LGPD (Brazil),POPIA (South Africa)
+Valid Consent,Required,Required for certain data types,Required,Required
+Right to Access,All personal data,Last 12 months of personal information,All personal data,All personal data
+Right to Delete,Yes,Yes,Yes,Yes
+Right to Correct,Yes,Yes,Yes,Yes
+Deletion Timeline,1 month (with extension),45 days (with extension),15 days,Variable
+Data Portability,Yes,Yes,Yes,Limited
+Children's Data,Under 16 (13 with parental consent),Under 16,Under 12,Under 18
+Penalties,Up to 4% global revenue,Up to $7500 per violation,Up to 2% revenue,Up to 10 million rand
+Data Broker Requirements,None specific,Registration and compliance with 'Delete Act',None specific,Registration required
+API Requirement,No explicit requirement,Access and deletion options,No explicit requirement,No explicit requirement
+Data Transfer Requirements,Adequacy mechanism required,None specific,Adequacy mechanism required,Adequacy mechanism required
+Notice Requirements,Comprehensive transparency,Notice at collection,'Privacy by Design',Transparency required
+Purpose Limitation,Strict,Less restrictive,Strict,Strict
+Security Standards,Appropriate measures,Reasonable measures,Appropriate measures,Appropriate measures
+Privacy Impact Assessment,Required for high-risk,Not explicitly required,Required for high-risk,Required for high-risk 

@@ -2,6 +2,8 @@
 
 This guide helps users understand and make the most of Tavren's features and services.
 
+<!-- For document structure, see docs/_fragments/document_templates.md#standard-section-format -->
+
 ## Getting Started
 
 ### 1. Creating an Account
@@ -26,6 +28,7 @@ This guide helps users understand and make the most of Tavren's features and ser
 - See data requirements
 
 ### 2. Accepting Offers
+<!-- For consent details, see docs/_fragments/consent_patterns.md#standard-consent-flow -->
 - Read offer terms
 - Review data usage
 - Accept the offer
@@ -46,6 +49,7 @@ This guide helps users understand and make the most of Tavren's features and ser
 ## Privacy and Security
 
 ### 1. Data Control
+<!-- For consent management details, see docs/_fragments/consent_patterns.md#consent-revocation -->
 - Manage permissions
 - Revoke access
 - Delete data
