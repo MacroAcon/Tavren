@@ -141,7 +141,7 @@ class EmbeddingService:
                 dimension=dimension,
                 embedding_json=json.dumps(embedding_vector),
                 text_content=text_content[:10000],  # Limit to prevent huge text storage
-                metadata=metadata,
+                embedding_metadata=metadata,
                 audit_id=audit_id
             )
             
@@ -234,7 +234,7 @@ class EmbeddingService:
                 "dimension": embedding_record.dimension,
                 "embedding": embedding_vector,
                 "text_content": embedding_record.text_content,
-                "metadata": embedding_record.metadata,
+                "embedding_metadata": embedding_record.embedding_metadata,
                 "created_at": embedding_record.created_at,
                 "updated_at": embedding_record.updated_at
             }
@@ -356,7 +356,7 @@ class EmbeddingService:
                 for key, value in filter_metadata.items():
                     # This assumes the metadata is stored in a JSONB column or equivalent
                     # May need adjustment based on DB type and schema
-                    query = query.where(DataPackageEmbedding.metadata[key].astext == str(value))
+                    query = query.where(DataPackageEmbedding.embedding_metadata[key].astext == str(value))
             
             # Execute the query
             if self.is_postgres:
@@ -370,7 +370,7 @@ class EmbeddingService:
                         "package_id": record.DataPackageEmbedding.package_id,
                         "embedding_type": record.DataPackageEmbedding.embedding_type,
                         "text_content": record.DataPackageEmbedding.text_content,
-                        "metadata": record.DataPackageEmbedding.metadata,
+                        "embedding_metadata": record.DataPackageEmbedding.embedding_metadata,
                         "similarity": float(record.similarity)
                     }
                     for record in records
@@ -391,7 +391,7 @@ class EmbeddingService:
                         "package_id": record.package_id,
                         "embedding_type": record.embedding_type,
                         "text_content": record.text_content,
-                        "metadata": record.metadata,
+                        "embedding_metadata": record.embedding_metadata,
                         "similarity": similarity
                     })
                 
@@ -556,7 +556,7 @@ class EmbeddingService:
                     "package_id": record["package_id"],
                     "embedding_type": record["embedding_type"],
                     "text_content": record["text_content"],
-                    "metadata": record["metadata"],
+                    "embedding_metadata": record["embedding_metadata"],
                     "semantic_score": record["similarity"],
                     "keyword_score": 0.0,
                     "combined_score": record["similarity"] * semantic_weight

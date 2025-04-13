@@ -87,7 +87,7 @@ class EvaluationService:
                 timestamp=datetime.utcnow(),
                 result_package_ids=[r.get("package_id") for r in results if r.get("package_id")],
                 relevant_package_ids=relevant_package_ids,
-                metadata=metadata or {}
+                retrieval_metadata=metadata or {}
             )
             
             # Calculate metrics if we have relevance information
@@ -103,10 +103,10 @@ class EvaluationService:
                 metric_record.mrr = metrics.get("mrr")
                 metric_record.ndcg = metrics.get("ndcg")
                 
-                # Store the full metrics dictionary in metadata
-                if "metrics" not in metric_record.metadata:
-                    metric_record.metadata["metrics"] = {}
-                metric_record.metadata["metrics"].update(metrics)
+                # Store the full metrics dictionary in retrieval_metadata
+                if "metrics" not in metric_record.retrieval_metadata:
+                    metric_record.retrieval_metadata["metrics"] = {}
+                metric_record.retrieval_metadata["metrics"].update(metrics)
             
             # Save to database
             self.db.add(metric_record)
@@ -187,7 +187,7 @@ class EvaluationService:
                 helpful_result_ids=helpful_result_ids or [],
                 unhelpful_result_ids=unhelpful_result_ids or [],
                 timestamp=datetime.utcnow(),
-                metadata=metadata or {}
+                retrieval_metadata=metadata or {}
             )
             
             # Save to database
@@ -362,7 +362,7 @@ class EvaluationService:
                 active=active,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
-                metadata=metadata or {}
+                test_metadata=metadata or {}
             )
             
             # Save to database
@@ -454,7 +454,7 @@ class EvaluationService:
                 "test_name": ab_test.name,
                 "variant": selected_variant,
                 "parameters": variant_params,
-                "metadata": ab_test.metadata
+                "metadata": ab_test.test_metadata
             }
         
         except Exception as e:
@@ -509,10 +509,10 @@ class EvaluationService:
                 raise ValueError(f"Metric with ID {metric_id} not found")
             
             # Update metric with A/B test data
-            if "ab_tests" not in metric.metadata:
-                metric.metadata["ab_tests"] = []
+            if "ab_tests" not in metric.retrieval_metadata:
+                metric.retrieval_metadata["ab_tests"] = []
                 
-            metric.metadata["ab_tests"].append({
+            metric.retrieval_metadata["ab_tests"].append({
                 "test_id": test_id,
                 "test_name": ab_test.name,
                 "variant": variant,
@@ -523,9 +523,9 @@ class EvaluationService:
             
             # Add any additional metadata
             if metadata:
-                if "ab_test_metadata" not in metric.metadata:
-                    metric.metadata["ab_test_metadata"] = {}
-                metric.metadata["ab_test_metadata"].update(metadata)
+                if "ab_test_metadata" not in metric.retrieval_metadata:
+                    metric.retrieval_metadata["ab_test_metadata"] = {}
+                metric.retrieval_metadata["ab_test_metadata"].update(metadata)
             
             await self.db.commit()
             
@@ -572,9 +572,9 @@ class EvaluationService:
             if not ab_test:
                 raise ValueError(f"A/B test with ID {test_id} not found")
             
-            # Find all metrics with this test ID in their metadata
+            # Find all metrics with this test ID in their retrieval_metadata
             metrics_query = select(RetrievalMetric).where(
-                RetrievalMetric.metadata["ab_tests"].contains([{"test_id": test_id}])
+                RetrievalMetric.retrieval_metadata["ab_tests"].contains([{"test_id": test_id}])
             )
             
             # Apply date filters if provided
@@ -591,7 +591,7 @@ class EvaluationService:
             
             for metric in metrics:
                 # Find the specific A/B test entry for this metric
-                for test_entry in metric.metadata.get("ab_tests", []):
+                for test_entry in metric.retrieval_metadata.get("ab_tests", []):
                     if test_entry.get("test_id") == test_id:
                         variant = test_entry.get("variant")
                         outcome = test_entry.get("outcome")
@@ -704,7 +704,7 @@ class EvaluationService:
                 active=active,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
-                metadata=metadata or {}
+                parameter_metadata=metadata or {}
             )
             
             # If this is active, deactivate other parameter sets for the same model

@@ -19,6 +19,8 @@ from app.schemas import (
 )
 from app.models import DataPackageAudit
 from app.services.data_packaging import DataPackagingService, get_data_packaging_service
+from app.utils.consent_validator import ConsentValidator, get_consent_validator
+from app.utils.consent_decorator import requires_consent
 
 # Set up logging
 log = logging.getLogger("app")
@@ -30,15 +32,21 @@ data_packaging_router = APIRouter(
 )
 
 @data_packaging_router.post("", response_model=DataPackageResponse)
+@requires_consent(
+    data_scope=lambda request: request.data_type,
+    purpose=lambda request: request.purpose,
+    user_id_extractor=lambda request: request.user_id
+)
 async def create_data_package(
     request: DataPackageRequest, 
     db: AsyncSession = Depends(get_db),
-    data_packaging_service: DataPackagingService = Depends(get_data_packaging_service)
+    data_packaging_service: DataPackagingService = Depends(get_data_packaging_service),
+    consent_validator: ConsentValidator = Depends(get_consent_validator)
 ):
     """
     Package user data according to the specified parameters.
     
-    - Validates consent permissions
+    - Validates consent permissions through the @requires_consent decorator
     - Retrieves and anonymizes data
     - Formats according to schemas
     - Includes audit trail

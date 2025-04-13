@@ -22,7 +22,7 @@ class ConsentEvent(Base):
     user_reason = Column(Text, nullable=True)
     reason_category = Column(String(32), nullable=True)
     paid_at = Column(DateTime(timezone=True), nullable=True) # Timestamp for processing
-    metadata = Column(JSON, nullable=True)  # Store additional consent information (scope, purpose, etc.)
+    consent_metadata = Column(JSON, nullable=True)  # Store additional consent information (scope, purpose, etc.)
 
 class Reward(Base):
     __tablename__ = "rewards"
@@ -73,7 +73,7 @@ class DataPackageAudit(Base):
     purpose = Column(String)
     status = Column(String, default="success")  # success, error, warning
     error_message = Column(Text, nullable=True)
-    metadata = Column(JSON, nullable=True)  # Additional context as needed
+    audit_metadata = Column(JSON, nullable=True)  # Additional context as needed
     
     def __repr__(self):
         return f"<DataPackageAudit(id={self.id}, operation={self.operation}, package_id={self.package_id})>"
@@ -102,7 +102,7 @@ class DataPackageEmbedding(Base):
     # Text search index to help with hybrid search
     text_content = Column(Text, nullable=True)  # Original text that was embedded
     # Metadata about the embedding
-    metadata = Column(JSON, nullable=True)
+    embedding_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
 
@@ -155,7 +155,7 @@ class RetrievalMetric(Base):
     user_rating = Column(Integer, nullable=True)  # User rating (1-5)
     
     # Additional metadata
-    metadata = Column(JSON, default=dict)
+    retrieval_metadata = Column(JSON, default=dict)
     
     def __repr__(self):
         return f"<RetrievalMetric(id={self.id}, query={self.query_text[:20]}..., results={self.result_count})>"
@@ -177,7 +177,7 @@ class RetrievalFeedback(Base):
     unhelpful_result_ids = Column(JSON, default=list)
     
     timestamp = Column(DateTime(timezone=True), index=True)
-    metadata = Column(JSON, default=dict)
+    feedback_metadata = Column(JSON, default=dict)
     
     def __repr__(self):
         return f"<RetrievalFeedback(id={self.id}, metric_id={self.metric_id}, rating={self.rating})>"
@@ -196,7 +196,7 @@ class ABTestConfig(Base):
     active = Column(Boolean, default=True)  # Whether this test is active
     created_at = Column(DateTime(timezone=True))
     updated_at = Column(DateTime(timezone=True))
-    metadata = Column(JSON, default=dict)
+    test_metadata = Column(JSON, default=dict)
     
     def __repr__(self):
         return f"<ABTestConfig(id={self.id}, name={self.name}, active={self.active})>"
@@ -215,12 +215,11 @@ class EmbeddingParameter(Base):
     active = Column(Boolean, default=False)  # Whether these are the active parameters
     created_at = Column(DateTime(timezone=True))
     updated_at = Column(DateTime(timezone=True))
-    metadata = Column(JSON, default=dict)
+    parameter_metadata = Column(JSON, default=dict)
     
     __table_args__ = (
         # Only one active parameter set per model
-        UniqueConstraint('model_name', 'active', name='uix_model_active_params',
-                         postgresql_where=active.is_(True)),
+        UniqueConstraint('model_name', 'active', name='uix_model_active_params'),
     )
     
     def __repr__(self):

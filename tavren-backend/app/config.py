@@ -3,7 +3,7 @@ import os
 import logging.config
 import secrets
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, List, Path
+from typing import Optional, List
 
 # This ensures correct .env loading regardless of where the app is run
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -34,14 +34,14 @@ class Settings(BaseSettings):
     MINIMUM_PAYOUT_THRESHOLD: float = 5.00
     
     # Static files
-    STATIC_DIR: Path = Path("app/static")
+    STATIC_DIR: pathlib.Path = pathlib.Path("app/static")
     
     # Data storage directory
-    DATA_DIR: Path = Path("data")
+    DATA_DIR: pathlib.Path = pathlib.Path("data")
     
     # Data Packaging settings
     ENCRYPT_DATA_PACKAGES: bool = True
-    DATA_ENCRYPTION_KEY: str  # Set in environment variables
+    DATA_ENCRYPTION_KEY: str = ""  # Will be generated in __init__ if not provided
     DATA_PACKAGE_TOKEN_EXPIRY_HOURS: int = 24
     DATA_PACKAGE_STORAGE_PATH: pathlib.Path = BASE_DIR / "data_packages"
     MAX_PACKAGE_SIZE_MB: int = 50

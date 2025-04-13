@@ -23,12 +23,16 @@ class InsightRequest(BaseModel):
         pet_method: Privacy-enhancing technology method to use
         epsilon: Privacy parameter for differential privacy (required if pet_method is "dp")
         data_format: Format of the provided data
+        user_id: Optional ID of the user whose data is being processed
+        purpose: Optional purpose of data processing
     """
     data: str = Field(..., description="Dataset as CSV string, JSON string, or filename")
     query_type: QueryType = Field(..., description="Type of insight query to process")
     pet_method: PrivacyMethod = Field(..., description="Privacy-enhancing technology method to use")
     epsilon: Optional[float] = Field(None, description="Privacy parameter for differential privacy")
     data_format: DataFormat = Field(DataFormat.CSV, description="Format of the provided data")
+    user_id: Optional[str] = Field(None, description="ID of the user whose data is being processed")
+    purpose: Optional[str] = Field("insight_generation", description="Purpose of data processing (e.g., insight_generation, ad_targeting)")
 
     @validator('epsilon')
     def validate_epsilon(cls, v, values):

@@ -2,6 +2,12 @@ import pytest
 import pandas as pd
 import numpy as np
 from app.utils.insight_processor import process_insight, QueryType, PrivacyMethod
+from app.utils.consent_validator import ConsentValidator
+
+# Test constants
+USER_ID = "test_user_123"
+DATA_SCOPE = "store_visits"
+PURPOSE = "insight_generation"
 
 # Sample data for testing
 @pytest.fixture
@@ -57,6 +63,23 @@ def sample_smpc_data():
     }
     
     return [party1_data, party2_data]
+
+@pytest.fixture
+def sample_data():
+    """Create sample DataFrame for testing."""
+    data = {
+        'user_id': ['test_user_123', 'user2', 'user3'],
+        'store_category': ['Grocery', 'Electronics', 'Clothing'],
+        'visit_count': [5, 3, 4]
+    }
+    return pd.DataFrame(data)
+
+# Mock consent validator with different response scenarios
+@pytest.fixture
+def mock_consent_validator():
+    """Create a mock consent validator with configurable responses."""
+    validator = AsyncMock(spec=ConsentValidator)
+    return validator
 
 def test_process_insight_dp(sample_store_visits_df):
     """Test processing insight with DP method"""
@@ -179,3 +202,184 @@ def test_process_insight_smpc(sample_smpc_data):
     # SMPC results should reflect true counts - might be harder to test exactly
     # since the SMPC simulation uses random shares
     assert set(result["result"].keys()) >= {"grocery", "clothing", "electronics"} 
+
+@pytest.mark.asyncio
+async def test_process_insight_with_valid_consent(sample_data, mock_consent_validator):
+    """Test processing insights when user has valid consent."""
+    # Configure mock to return valid consent
+    mock_consent_validator.is_processing_allowed.return_value = (
+        True, 
+        {
+            "status": "allowed",
+            "consent_id": 1,
+            "granted_at": datetime.now().isoformat(),
+            "user_id": USER_ID,
+            "scope": DATA_SCOPE,
+            "purpose": PURPOSE
+        }
+    )
+    
+    # Process with DP method
+    result = await process_insight(
+        data=sample_data,
+        query_type=QueryType.AVERAGE_STORE_VISITS.value,
+        pet_method=PrivacyMethod.DP.value,
+        epsilon=1.0,
+        user_id=USER_ID,
+        data_scope=DATA_SCOPE,
+        purpose=PURPOSE,
+        consent_validator=mock_consent_validator
+    )
+    
+    # Verify results
+    assert "result" in result
+    assert "metadata" in result
+    assert result["metadata"]["status"] == "success"
+    assert result["metadata"]["consent_validated"] is True
+    assert result["metadata"]["user_id"] == USER_ID
+    assert result["metadata"]["data_scope"] == DATA_SCOPE
+    
+    # Verify consent validation was called correctly
+    mock_consent_validator.is_processing_allowed.assert_called_once_with(
+        user_id=USER_ID,
+        data_scope=DATA_SCOPE,
+        purpose=PURPOSE
+    )
+
+@pytest.mark.asyncio
+async def test_process_insight_with_denied_consent(sample_data, mock_consent_validator):
+    """Test processing insights when user has denied consent."""
+    # Configure mock to return denied consent
+    mock_consent_validator.is_processing_allowed.return_value = (
+        False, 
+        {
+            "reason": "Consent revoked for store_visits",
+            "required_action": "opt_in",
+            "revoked_at": datetime.now().isoformat(),
+            "user_id": USER_ID,
+            "scope": DATA_SCOPE,
+            "purpose": PURPOSE,
+            "consent_id": 2
+        }
+    )
+    
+    # Process with DP method
+    result = await process_insight(
+        data=sample_data,
+        query_type=QueryType.AVERAGE_STORE_VISITS.value,
+        pet_method=PrivacyMethod.DP.value,
+        epsilon=1.0,
+        user_id=USER_ID,
+        data_scope=DATA_SCOPE,
+        purpose=PURPOSE,
+        consent_validator=mock_consent_validator
+    )
+    
+    # Verify results indicate rejection
+    assert result["result"] is None
+    assert result["metadata"]["status"] == "rejected"
+    assert "error" in result["metadata"]
+    assert "error_details" in result["metadata"]
+    
+    # Verify consent validation was called correctly
+    mock_consent_validator.is_processing_allowed.assert_called_once_with(
+        user_id=USER_ID,
+        data_scope=DATA_SCOPE,
+        purpose=PURPOSE
+    )
+
+@pytest.mark.asyncio
+async def test_process_insight_with_consent_validation_error(sample_data, mock_consent_validator):
+    """Test processing insights when consent validation raises an error."""
+    # Configure mock to raise an exception
+    mock_consent_validator.is_processing_allowed.side_effect = Exception("Database connection error")
+    
+    # Process with DP method
+    result = await process_insight(
+        data=sample_data,
+        query_type=QueryType.AVERAGE_STORE_VISITS.value,
+        pet_method=PrivacyMethod.DP.value,
+        epsilon=1.0,
+        user_id=USER_ID,
+        data_scope=DATA_SCOPE,
+        purpose=PURPOSE,
+        consent_validator=mock_consent_validator
+    )
+    
+    # Verify results indicate error
+    assert result["result"] is None
+    assert result["metadata"]["status"] == "error"
+    assert "error" in result["metadata"]
+    assert "Database connection error" in result["metadata"]["error_details"]["message"]
+    
+    # Verify consent validation was called correctly
+    mock_consent_validator.is_processing_allowed.assert_called_once_with(
+        user_id=USER_ID,
+        data_scope=DATA_SCOPE,
+        purpose=PURPOSE
+    )
+
+@pytest.mark.asyncio
+async def test_process_insight_without_consent_validator(sample_data):
+    """Test processing insights when no consent validator is provided."""
+    # Process with DP method but no consent validator
+    result = await process_insight(
+        data=sample_data,
+        query_type=QueryType.AVERAGE_STORE_VISITS.value,
+        pet_method=PrivacyMethod.DP.value,
+        epsilon=1.0,
+        user_id=USER_ID,
+        data_scope=DATA_SCOPE,
+        purpose=PURPOSE
+    )
+    
+    # Verify processing occurred successfully without consent validation
+    assert "result" in result
+    assert "metadata" in result
+    assert result["metadata"]["status"] == "success"
+    assert "consent_validated" not in result["metadata"]
+
+@pytest.mark.asyncio
+async def test_process_insight_without_user_data(sample_data, mock_consent_validator):
+    """Test processing insights when user ID or data scope is not provided."""
+    # Process with DP method but no user ID
+    result = await process_insight(
+        data=sample_data,
+        query_type=QueryType.AVERAGE_STORE_VISITS.value,
+        pet_method=PrivacyMethod.DP.value,
+        epsilon=1.0,
+        consent_validator=mock_consent_validator
+    )
+    
+    # Verify processing occurred without consent validation
+    assert "result" in result
+    assert "metadata" in result
+    assert result["metadata"]["status"] == "success"
+    assert "consent_validated" not in result["metadata"]
+    
+    # Verify consent validation was not called
+    mock_consent_validator.is_processing_allowed.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_process_insight_with_validation_error(sample_data, mock_consent_validator):
+    """Test processing insights with invalid input parameters."""
+    # Process with invalid epsilon value
+    result = await process_insight(
+        data=sample_data,
+        query_type=QueryType.AVERAGE_STORE_VISITS.value,
+        pet_method=PrivacyMethod.DP.value,
+        epsilon=-1.0,  # Invalid epsilon
+        user_id=USER_ID,
+        data_scope=DATA_SCOPE,
+        purpose=PURPOSE,
+        consent_validator=mock_consent_validator
+    )
+    
+    # Verify results indicate input validation error
+    assert result["result"] is None
+    assert result["metadata"]["status"] == "error"
+    assert "error" in result["metadata"]
+    assert "Input validation failed" in result["metadata"]["error"]
+    
+    # Verify consent validation was not attempted
+    mock_consent_validator.is_processing_allowed.assert_not_called() 

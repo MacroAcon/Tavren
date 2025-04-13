@@ -62,7 +62,7 @@ class ConsentLedgerService:
                 timestamp=datetime.now(),
                 user_reason=event.user_reason if hasattr(event, 'user_reason') else None,
                 reason_category=event.reason_category if hasattr(event, 'reason_category') else None,
-                metadata=event.metadata if hasattr(event, 'metadata') else None
+                consent_metadata=event.metadata if hasattr(event, 'metadata') else None
             )
             
             # Add to database
@@ -91,7 +91,7 @@ class ConsentLedgerService:
                 "initiated_by": event.initiated_by if hasattr(event, 'initiated_by') else "user",
                 "reason": db_event.user_reason,
                 "reason_category": db_event.reason_category,
-                "metadata": db_event.metadata,
+                "metadata": db_event.consent_metadata,
                 "prev_hash": prev_hash,
                 "hash": verification_hash
             }

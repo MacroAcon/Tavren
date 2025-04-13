@@ -193,65 +193,150 @@ def apply_smpc_to_average(data: List[Dict]) -> Dict[str, float]:
     
     return result
 
-def process_insight(data: Any, query_type: str, pet_method: str, epsilon: Optional[float] = None) -> Dict[str, Any]:
+async def process_insight(
+    data: Any, 
+    query_type: str, 
+    pet_method: str, 
+    epsilon: Optional[float] = None,
+    user_id: Optional[str] = None,
+    data_scope: Optional[str] = None,
+    purpose: Optional[str] = "insight_generation",
+    consent_validator = None
+) -> Dict[str, Any]:
     """
     Process an insight request with the specified privacy-enhancing technology
     
     Args:
-        data: Input data (format depends on query_type and pet_method)
+        data: Input data (DataFrame, dictionary, or list)
         query_type: Type of query to process
         pet_method: Privacy-enhancing technology method to use
         epsilon: Privacy parameter for differential privacy (if applicable)
+        user_id: Optional ID of the user whose data is being processed
+        data_scope: Optional scope of the data being processed (e.g., "location")
+        purpose: Optional purpose of processing (default: "insight_generation")
+        consent_validator: Optional consent validator instance for checking consent
         
     Returns:
-        Dictionary containing the privacy-protected insight result
+        Dictionary containing processed result and metadata
         
     Raises:
         ValueError: If input validation fails
-        NotImplementedError: If query type or PET method is valid but not implemented
+        PermissionError: If consent validation fails
     """
     start_time = time.time()
-    logger.info(f"Processing insight request: query_type={query_type}, pet_method={pet_method}")
+    process_id = str(int(start_time * 1000))  # Generate a unique process ID
     
+    logger.info(f"Processing insight {process_id} using {pet_method} for query type {query_type}")
+    
+    # Check consent if validator and user_id are provided
+    if consent_validator and user_id and data_scope:
+        logger.info(f"Validating consent for user {user_id}, scope '{data_scope}', purpose '{purpose}'")
+        try:
+            is_allowed, details = await consent_validator.is_processing_allowed(
+                user_id=user_id,
+                data_scope=data_scope,
+                purpose=purpose
+            )
+            
+            if not is_allowed:
+                logger.warning(f"Consent validation failed for user {user_id}: {details['reason']}")
+                return {
+                    "result": None,
+                    "metadata": {
+                        "processing_time_ms": round((time.time() - start_time) * 1000, 2),
+                        "process_id": process_id,
+                        "error": "Consent validation failed",
+                        "error_details": details,
+                        "status": "rejected"
+                    }
+                }
+            
+            logger.info(f"Consent validated successfully for user {user_id}, scope '{data_scope}', purpose '{purpose}'")
+            
+        except Exception as e:
+            logger.error(f"Error during consent validation: {str(e)}", exc_info=True)
+            return {
+                "result": None,
+                "metadata": {
+                    "processing_time_ms": round((time.time() - start_time) * 1000, 2),
+                    "process_id": process_id,
+                    "error": "Consent validation error",
+                    "error_details": {"message": str(e)},
+                    "status": "error"
+                }
+            }
+    
+    # Check if user_id, data_scope, and purpose are provided but no validator
+    elif user_id and data_scope and not consent_validator:
+        logger.warning("User data being processed without consent validation")
+    
+    # Validate input
     try:
-        # Validate input
         validate_input(data, query_type, pet_method, epsilon)
+    except ValueError as e:
+        logger.error(f"Input validation error: {str(e)}")
+        return {
+            "result": None,
+            "metadata": {
+                "processing_time_ms": round((time.time() - start_time) * 1000, 2),
+                "process_id": process_id,
+                "error": "Input validation failed",
+                "error_details": {"message": str(e)},
+                "status": "error"
+            }
+        }
+    
+    # Process based on query type and PET method
+    try:
+        result = None
         
-        result = {}
-        
-        # Process based on query type and PET method
         if query_type == QueryType.AVERAGE_STORE_VISITS:
             if pet_method == PrivacyMethod.DP:
-                if not isinstance(data, pd.DataFrame):
-                    raise ValueError("DP method requires data as a pandas DataFrame")
                 result = apply_dp_to_average(data, epsilon)
             elif pet_method == PrivacyMethod.SMPC:
-                if not isinstance(data, list):
-                    raise ValueError("SMPC method requires data as a list of party data")
                 result = apply_smpc_to_average(data)
-            else:
-                # This shouldn't happen due to validation, but just in case
-                raise NotImplementedError(f"PET method {pet_method} not implemented for {query_type}")
-        else:
-            # This shouldn't happen due to validation, but just in case
-            raise NotImplementedError(f"Query type {query_type} not implemented")
         
-        # Add metadata to result
+        if result is None:
+            raise NotImplementedError(f"Query type {query_type} with {pet_method} not implemented yet")
+        
+        # Calculate processing time
         processing_time = time.time() - start_time
+        
+        # Prepare metadata
         metadata = {
+            "processing_time_ms": round(processing_time * 1000, 2),
+            "process_id": process_id,
             "query_type": query_type,
             "pet_method": pet_method,
-            "processing_time_ms": round(processing_time * 1000, 2)
+            "status": "success"
         }
         
-        if pet_method == PrivacyMethod.DP:
+        # Include consent information if available
+        if consent_validator and user_id and data_scope:
+            metadata["consent_validated"] = True
+            metadata["user_id"] = user_id
+            metadata["data_scope"] = data_scope
+            metadata["purpose"] = purpose
+        
+        # Include DP specific metadata
+        if pet_method == PrivacyMethod.DP and epsilon:
             metadata["epsilon"] = epsilon
+            metadata["estimated_error"] = 1.0 / epsilon * 100  # Rough error estimate in percentage
         
         return {
             "result": result,
             "metadata": metadata
         }
-    
+        
     except Exception as e:
         logger.error(f"Error processing insight: {str(e)}", exc_info=True)
-        raise 
+        return {
+            "result": None,
+            "metadata": {
+                "processing_time_ms": round((time.time() - start_time) * 1000, 2),
+                "process_id": process_id,
+                "error": "Processing error",
+                "error_details": {"message": str(e)},
+                "status": "error"
+            }
+        } 
