@@ -26,13 +26,15 @@ from .routers import (
     auth_router,
     data_packaging_router,
     insight_router,
-    dsr_router
+    dsr_router,
+    agent_router
 )
 
 from .routers.buyer_data import buyer_data_router
 from .routers.llm_router import llm_router
 from .routers.embedding_router import embedding_router
 from .routers.consent_ledger import consent_ledger_router
+from .routers.consent_export import router as consent_export_router
 from app.routers import users, data, consent, payment, embeddings, evaluation
 from .routers import user_router
 
@@ -120,6 +122,7 @@ app.include_router(static_router)
 app.include_router(consent_router)
 app.include_router(consent_dashboard_router)
 app.include_router(consent_ledger_router)
+app.include_router(consent_export_router)
 
 # DSR routes
 app.include_router(dsr_router)

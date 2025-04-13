@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Response, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
+import json
 
 from app.database import get_db
 from app.schemas import (
@@ -16,6 +17,9 @@ from app.auth import get_current_active_user
 from app.utils.response_utils import handle_exception
 from app.logging.log_utils import log_api_request, log_exception
 from app.constants.status import HTTP_500_INTERNAL_SERVER_ERROR
+from app.dependencies import get_current_user, get_current_admin_user
+from app.models.user import User
+from app.utils.consent_export import get_consent_export
 
 # Get logger
 log = logging.getLogger("app")
@@ -77,33 +81,99 @@ async def get_user_consent_history(
         log_exception(e, context="get_user_consent_history", user_id=user_id)
         handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Failed to retrieve consent history")
 
-@consent_ledger_router.get("/export", response_model=List[Dict[str, Any]])
+@consent_ledger_router.get("/export", response_model=Dict[str, Any])
 async def export_consent_ledger(
-    start_date: Optional[datetime] = Query(None, description="Filter events after this date"),
-    end_date: Optional[datetime] = Query(None, description="Filter events before this date"),
+    background_tasks: BackgroundTasks,
+    include_pet_queries: bool = Query(False, description="Include privacy-enhancing technology query logs"),
+    save_file: bool = Query(False, description="Save export to file on server"),
+    download: bool = Query(True, description="Download export as a file"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    consent_ledger_service: ConsentLedgerService = Depends(get_consent_ledger_service),
-    current_user = Depends(get_current_active_user)
 ):
     """
-    Export the full consent ledger for auditing.
+    Generate a verifiable export of the user's consent events and processing history.
     
-    Returns all consent events in the ledger, optionally filtered by date range.
-    This endpoint requires administrator privileges.
+    This export includes:
+    - Complete consent event history
+    - DSR action history
+    - Optionally, PET query logs involving the user's data
+    
+    The export is cryptographically signed and includes a hash for verification.
     """
-    log_api_request(endpoint="/api/consent-ledger/export", method="GET", params={
-        "start_date": start_date.isoformat() if start_date else None,
-        "end_date": end_date.isoformat() if end_date else None
-    })
+    # Get consent export service
+    export_service = await get_consent_export(db)
     
-    log.info(f"Exporting consent ledger (date range: {start_date} to {end_date})")
+    # Generate export package
+    export_data = await export_service.generate_export_package(
+        user_id=current_user.id,
+        include_pet_queries=include_pet_queries,
+        sign_export=True
+    )
     
-    try:
-        events = await consent_ledger_service.export_ledger(start_date, end_date)
-        return events
-    except Exception as e:
-        log_exception(e, context="export_consent_ledger")
-        handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Failed to export consent ledger")
+    # Save file if requested
+    if save_file:
+        file_path = await export_service.save_export_file(export_data)
+        if file_path:
+            export_data["file_path"] = file_path
+    
+    # Return as downloadable file if requested
+    if download:
+        filename = f"{current_user.id}_consent_export_{export_data.get('export_timestamp', '').replace(':', '-')}.json"
+        json_content = json.dumps(export_data, indent=2)
+        return Response(
+            content=json_content,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    
+    # Otherwise return as JSON response
+    return export_data
+
+@consent_ledger_router.get("/export/{user_id}", response_model=Dict[str, Any])
+async def export_user_consent_ledger(
+    user_id: str,
+    background_tasks: BackgroundTasks,
+    include_pet_queries: bool = Query(False, description="Include privacy-enhancing technology query logs"),
+    save_file: bool = Query(True, description="Save export to file on server"),
+    download: bool = Query(False, description="Download export as a file"),
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    [Admin only] Generate a verifiable export of any user's consent events and processing history.
+    """
+    # Get consent export service
+    export_service = await get_consent_export(db)
+    
+    # Generate export package
+    export_data = await export_service.generate_export_package(
+        user_id=user_id,
+        include_pet_queries=include_pet_queries,
+        sign_export=True
+    )
+    
+    # Save file if requested
+    if save_file:
+        file_path = await export_service.save_export_file(export_data)
+        if file_path:
+            export_data["file_path"] = file_path
+    
+    # Return as downloadable file if requested
+    if download:
+        filename = f"{user_id}_consent_export_{export_data.get('export_timestamp', '').replace(':', '-')}.json"
+        json_content = json.dumps(export_data, indent=2)
+        return Response(
+            content=json_content,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    
+    # Otherwise return as JSON response
+    return export_data
 
 @consent_ledger_router.get("/verify", response_model=LedgerVerificationResult)
 async def verify_ledger_integrity(
