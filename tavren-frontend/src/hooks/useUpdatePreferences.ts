@@ -8,6 +8,7 @@ import {
   PayoutFrequency
 } from '../stores/preferencesStore';
 import { notifySuccess, notifyError } from '../stores';
+import apiClient from '../utils/apiClient';
 
 export const useUpdatePreferences = () => {
   const [loading, setLoading] = useState(false);
@@ -19,14 +20,19 @@ export const useUpdatePreferences = () => {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Update via API
+      const response = await apiClient.patch<{ success: boolean }>('/user/preferences', { 
+        privacyPosture: posture 
+      });
       
-      // Update local state via Zustand
-      preferencesStore.setPrivacyPosture(posture);
-      
-      notifySuccess('Privacy posture updated successfully');
-      return true;
+      if (response.success) {
+        // Update local state via Zustand
+        preferencesStore.setPrivacyPosture(posture);
+        notifySuccess('Privacy posture updated successfully');
+        return true;
+      } else {
+        throw new Error('API returned unsuccessful status');
+      }
     } catch (err) {
       setError('Failed to update privacy posture');
       notifyError('Failed to update privacy posture');
@@ -41,14 +47,19 @@ export const useUpdatePreferences = () => {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Update via API
+      const response = await apiClient.patch<{ success: boolean }>('/user/preferences', { 
+        consentPosture: posture 
+      });
       
-      // Update local state via Zustand
-      preferencesStore.setConsentPosture(posture);
-      
-      notifySuccess('Consent posture updated successfully');
-      return true;
+      if (response.success) {
+        // Update local state via Zustand
+        preferencesStore.setConsentPosture(posture);
+        notifySuccess('Consent posture updated successfully');
+        return true;
+      } else {
+        throw new Error('API returned unsuccessful status');
+      }
     } catch (err) {
       setError('Failed to update consent posture');
       notifyError('Failed to update consent posture');
@@ -63,14 +74,19 @@ export const useUpdatePreferences = () => {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Update via API
+      const response = await apiClient.patch<{ success: boolean }>('/user/preferences', { 
+        autoAcceptTrustedSources: enabled 
+      });
       
-      // Update local state via Zustand
-      preferencesStore.setAutoAcceptTrustedSources(enabled);
-      
-      notifySuccess(`Auto-accept for trusted sources ${enabled ? 'enabled' : 'disabled'}`);
-      return true;
+      if (response.success) {
+        // Update local state via Zustand
+        preferencesStore.setAutoAcceptTrustedSources(enabled);
+        notifySuccess(`Auto-accept for trusted sources ${enabled ? 'enabled' : 'disabled'}`);
+        return true;
+      } else {
+        throw new Error('API returned unsuccessful status');
+      }
     } catch (err) {
       setError('Failed to update auto-accept setting');
       notifyError('Failed to update auto-accept setting');
@@ -85,14 +101,19 @@ export const useUpdatePreferences = () => {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Update via API
+      const response = await apiClient.patch<{ success: boolean }>('/user/preferences', { 
+        autoRejectLowTrust: enabled 
+      });
       
-      // Update local state via Zustand
-      preferencesStore.setAutoRejectLowTrust(enabled);
-      
-      notifySuccess(`Auto-reject for low trust sources ${enabled ? 'enabled' : 'disabled'}`);
-      return true;
+      if (response.success) {
+        // Update local state via Zustand
+        preferencesStore.setAutoRejectLowTrust(enabled);
+        notifySuccess(`Auto-reject for low trust sources ${enabled ? 'enabled' : 'disabled'}`);
+        return true;
+      } else {
+        throw new Error('API returned unsuccessful status');
+      }
     } catch (err) {
       setError('Failed to update auto-reject setting');
       notifyError('Failed to update auto-reject setting');
@@ -107,14 +128,19 @@ export const useUpdatePreferences = () => {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Update via API
+      const response = await apiClient.patch<{ success: boolean }>('/user/preferences', { 
+        autoRejectDataTypes: dataTypes 
+      });
       
-      // Update local state via Zustand
-      preferencesStore.setAutoRejectDataTypes(dataTypes);
-      
-      notifySuccess('Auto-reject data types updated');
-      return true;
+      if (response.success) {
+        // Update local state via Zustand
+        preferencesStore.setAutoRejectDataTypes(dataTypes);
+        notifySuccess('Auto-reject data types updated');
+        return true;
+      } else {
+        throw new Error('API returned unsuccessful status');
+      }
     } catch (err) {
       setError('Failed to update auto-reject data types');
       notifyError('Failed to update auto-reject data types');
@@ -129,14 +155,19 @@ export const useUpdatePreferences = () => {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Update via API
+      const response = await apiClient.patch<{ success: boolean }>('/user/notifications', { 
+        preferredContactMethod: method 
+      });
       
-      // Update local state via Zustand
-      preferencesStore.setPreferredContactMethod(method);
-      
-      notifySuccess('Preferred contact method updated');
-      return true;
+      if (response.success) {
+        // Update local state via Zustand
+        preferencesStore.setPreferredContactMethod(method);
+        notifySuccess('Preferred contact method updated');
+        return true;
+      } else {
+        throw new Error('API returned unsuccessful status');
+      }
     } catch (err) {
       setError('Failed to update preferred contact method');
       notifyError('Failed to update preferred contact method');
@@ -155,16 +186,23 @@ export const useUpdatePreferences = () => {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Update via API
+      const response = await apiClient.patch<{ success: boolean }>('/user/notifications', { 
+        emailNotifications: email,
+        pushNotifications: push,
+        smsNotifications: sms
+      });
       
-      // Update local state via Zustand
-      preferencesStore.setEmailNotifications(email);
-      preferencesStore.setPushNotifications(push);
-      preferencesStore.setSmsNotifications(sms);
-      
-      notifySuccess('Notification settings updated');
-      return true;
+      if (response.success) {
+        // Update local state via Zustand
+        preferencesStore.setEmailNotifications(email);
+        preferencesStore.setPushNotifications(push);
+        preferencesStore.setSmsNotifications(sms);
+        notifySuccess('Notification settings updated');
+        return true;
+      } else {
+        throw new Error('API returned unsuccessful status');
+      }
     } catch (err) {
       setError('Failed to update notification settings');
       notifyError('Failed to update notification settings');
@@ -179,14 +217,38 @@ export const useUpdatePreferences = () => {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Get default preferences from store
+      const defaults = {
+        privacyPosture: "balanced",
+        consentPosture: "moderate",
+        autoAcceptTrustedSources: true,
+        autoRejectLowTrust: true,
+        minimumTrustTier: 3,
+        emailNotifications: true,
+        pushNotifications: true,
+        smsNotifications: false,
+        preferredContactMethod: "email"
+      };
       
-      // Update local state via Zustand
-      preferencesStore.resetToDefaults();
+      // Update preferences via API
+      const prefsResponse = await apiClient.patch<{ success: boolean }>('/user/preferences', defaults);
       
-      notifySuccess('Preferences reset to defaults');
-      return true;
+      // Update notifications via API
+      const notifyResponse = await apiClient.patch<{ success: boolean }>('/user/notifications', {
+        emailNotifications: defaults.emailNotifications,
+        pushNotifications: defaults.pushNotifications,
+        smsNotifications: defaults.smsNotifications,
+        preferredContactMethod: defaults.preferredContactMethod
+      });
+      
+      if (prefsResponse.success && notifyResponse.success) {
+        // Update local state via Zustand
+        preferencesStore.resetToDefaults();
+        notifySuccess('Preferences reset to defaults');
+        return true;
+      } else {
+        throw new Error('API returned unsuccessful status');
+      }
     } catch (err) {
       setError('Failed to reset preferences');
       notifyError('Failed to reset preferences');

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useOfferStore } from '../../stores';
 import { Offer, OfferType, DataAccessLevel } from '../../types/offers';
-import { Card, LoadingState, ErrorState } from '../shared';
+import { Card, LoadingState, ErrorState, EmptyState } from '../shared';
+import { useApiWithErrorHandling } from '../../utils/errorHandling';
 import './offers.css';
 
 // Helper function to format currency
@@ -177,6 +178,8 @@ const OfferFeed: React.FC = () => {
     setSelectedOffer 
   } = useOfferStore();
   
+  const { callApi } = useApiWithErrorHandling();
+  
   // Reference to the sentinel element for infinite scrolling
   const observerRef = useRef<IntersectionObserver | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -188,10 +191,24 @@ const OfferFeed: React.FC = () => {
   }, [setSelectedOffer]);
   
   // Handle accept offer click
-  const handleAcceptOffer = useCallback((offer: Offer) => {
-    // Navigate to offer details with accept mode
-    window.location.href = `/offers/${offer.id}?accept=true`;
-  }, []);
+  const handleAcceptOffer = useCallback(async (offer: Offer) => {
+    // Try to accept the offer with error handling
+    const success = await callApi(
+      () => useOfferStore.getState().acceptOffer(offer.id),
+      'accepting offer',
+      { retries: 1 }
+    );
+    
+    if (success) {
+      // Navigate to offer details with accept mode
+      window.location.href = `/offers/${offer.id}?accept=true`;
+    }
+  }, [callApi]);
+  
+  // Handle refresh offers
+  const handleRefreshOffers = useCallback(() => {
+    fetchOffers(true); // Reset to page 1 and refetch
+  }, [fetchOffers]);
   
   // Setup intersection observer for infinite scrolling
   useEffect(() => {
@@ -225,16 +242,22 @@ const OfferFeed: React.FC = () => {
   
   // Handle error state
   if (error && offers.length === 0) {
-    return <ErrorState message={error} />;
+    return <ErrorState 
+      message={`Failed to load offers: ${error}`}
+      onRetry={handleRefreshOffers}
+    />;
   }
   
   return (
     <div className="offer-feed">
       {offers.length === 0 && !loading ? (
-        <div className="no-offers">
-          <h3>No offers available</h3>
-          <p>Try changing your filters or check back later for new offers.</p>
-        </div>
+        <EmptyState
+          title="No Offers Available"
+          message="Try changing your filters or check back later for new offers."
+          icon="🔍"
+          actionLabel="Refresh Offers"
+          onAction={handleRefreshOffers}
+        />
       ) : (
         <>
           <div className="offer-grid">
@@ -248,7 +271,7 @@ const OfferFeed: React.FC = () => {
             ))}
           </div>
           
-          {loading && <LoadingState />}
+          {loading && <LoadingState message="Loading more offers..." />}
           
           {/* Sentinel element for infinite scrolling */}
           <div ref={sentinelRef} className="sentinel"></div>

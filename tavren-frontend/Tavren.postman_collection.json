@@ -1,0 +1,1336 @@
+{
+	"info": {
+		"_postman_id": "7ebc23e4-8f0b-4a40-9b64-9a2c6f8eec5c",
+		"name": "Tavren API",
+		"description": "Collection of API requests for the Tavren platform - a platform where users can manage consent, browse offers, and earn compensation for data sharing.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"auth_token\", jsonData.access_token);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "your_username",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "your_password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/token",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"token"
+							]
+						},
+						"description": "Authenticates a user and returns an access token"
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"auth_token\", jsonData.access_token);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Refreshes the access token using the current valid token"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication-related endpoints"
+		},
+		{
+			"name": "Wallet",
+			"item": [
+				{
+					"name": "Get Wallet Summary",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wallet/summary",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wallet",
+								"summary"
+							]
+						},
+						"description": "Retrieves a summary of the user's wallet"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Wallet Balance",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wallet/balance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wallet",
+								"balance"
+							]
+						},
+						"description": "Retrieves the user's current wallet balance"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transactions",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wallet/transactions?page=1&limit=20",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wallet",
+								"transactions"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Retrieves a paginated list of the user's transactions"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction By ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wallet/transactions/{{transaction_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wallet",
+								"transactions",
+								"{{transaction_id}}"
+							]
+						},
+						"description": "Gets details for a specific transaction by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Request Payout",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"amount\": 50.00,\n    \"paymentMethodId\": \"pay-001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/wallet/payout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wallet",
+								"payout"
+							]
+						},
+						"description": "Requests a payout of funds from the wallet"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment Methods",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wallet/payment-methods",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wallet",
+								"payment-methods"
+							]
+						},
+						"description": "Retrieves all payment methods for the user"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Payout Settings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"frequency\": \"monthly\",\n    \"threshold\": 25.00,\n    \"methodId\": \"pay-001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/wallet/payout-settings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wallet",
+								"payout-settings"
+							]
+						},
+						"description": "Updates the user's payout settings"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Default Payment Method",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wallet/payment-methods/{{payment_method_id}}/default",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wallet",
+								"payment-methods",
+								"{{payment_method_id}}",
+								"default"
+							]
+						},
+						"description": "Sets the specified payment method as default"
+					},
+					"response": []
+				}
+			],
+			"description": "Wallet-related endpoints for managing user earnings"
+		},
+		{
+			"name": "Offers",
+			"item": [
+				{
+					"name": "Get All Offers",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/offers?page=1&limit=10&category=finance&minCompensation=5",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"offers"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "category",
+									"value": "finance"
+								},
+								{
+									"key": "minCompensation",
+									"value": "5"
+								}
+							]
+						},
+						"description": "Retrieves all available offers for the user, with optional filtering"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Offer By ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/offers/{{offer_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"offers",
+								"{{offer_id}}"
+							]
+						},
+						"description": "Gets detailed information about a specific offer"
+					},
+					"response": []
+				},
+				{
+					"name": "Accept Offer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/offers/{{offer_id}}/accept",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"offers",
+								"{{offer_id}}",
+								"accept"
+							]
+						},
+						"description": "Accepts a specific offer and adds it to the user's active offers"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Offer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/offers/{{offer_id}}/reject",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"offers",
+								"{{offer_id}}",
+								"reject"
+							]
+						},
+						"description": "Explicitly rejects an offer so it won't be shown to the user again"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Recommended Offers",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/offers/recommended?count=3",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"offers",
+								"recommended"
+							],
+							"query": [
+								{
+									"key": "count",
+									"value": "3"
+								}
+							]
+						},
+						"description": "Gets a list of offers recommended for this user"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for managing data sharing offers"
+		},
+		{
+			"name": "Consent",
+			"item": [
+				{
+					"name": "Get Consent Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/consent/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"consent",
+								"status"
+							]
+						},
+						"description": "Retrieves the current consent status for the user"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Consent",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"data_type\": \"browsing_history\",\n    \"is_granted\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/consent/update",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"consent",
+								"update"
+							]
+						},
+						"description": "Updates the user's consent preferences"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Privacy Settings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"privacyPosture\": \"balanced\",\n    \"consentPosture\": \"moderate\",\n    \"autoAcceptTrustedSources\": true,\n    \"autoRejectLowTrust\": true,\n    \"minimumTrustTier\": 3,\n    \"emailNotifications\": true,\n    \"pushNotifications\": false,\n    \"smsNotifications\": false,\n    \"preferredContactMethod\": \"email\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/preferences",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"preferences"
+							]
+						},
+						"description": "Updates user privacy and notification preferences"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for managing user consent preferences"
+		},
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "Get User Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/user/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user",
+								"profile"
+							]
+						},
+						"description": "Retrieves the current user's profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Notification Preferences",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email_notifications\": true,\n    \"push_notifications\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user/notifications",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user",
+								"notifications"
+							]
+						},
+						"description": "Updates the user's notification preferences"
+					},
+					"response": []
+				},
+				{
+					"name": "User Profile",
+					"item": [
+						{
+							"name": "Get User Profile",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{api_url}}/user/profile",
+									"host": [
+										"{{api_url}}"
+									],
+									"path": [
+										"user",
+										"profile"
+									]
+								},
+								"description": "Retrieves the current user's profile information including basic details, verification status, and login history."
+							},
+							"response": [
+								{
+									"name": "Get User Profile - Success",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{token}}",
+												"type": "text"
+											}
+										],
+										"url": {
+											"raw": "{{api_url}}/user/profile",
+											"host": [
+												"{{api_url}}"
+											],
+											"path": [
+												"user",
+												"profile"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"id\": \"user123\",\n  \"username\": \"alice_smith\",\n  \"email\": \"alice@example.com\",\n  \"is_active\": true,\n  \"fullName\": \"Alice Smith\",\n  \"bio\": \"Privacy conscious tech enthusiast\",\n  \"avatarUrl\": \"https://i.pravatar.cc/150?u=alice_smith\",\n  \"joinDate\": \"2023-03-15T12:00:00Z\",\n  \"lastActive\": \"2023-06-20T15:30:00Z\",\n  \"verifiedEmail\": true,\n  \"verifiedPhone\": false,\n  \"twoFactorEnabled\": false\n}"
+								}
+							]
+						},
+						{
+							"name": "Update User Profile",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"fullName\": \"Alice Johnson\",\n  \"email\": \"alice.johnson@example.com\",\n  \"bio\": \"Privacy advocate and blockchain enthusiast\"\n}"
+								},
+								"url": {
+									"raw": "{{api_url}}/user/profile",
+									"host": [
+										"{{api_url}}"
+									],
+									"path": [
+										"user",
+										"profile"
+									]
+								},
+								"description": "Updates the current user's profile information."
+							},
+							"response": [
+								{
+									"name": "Update User Profile - Success",
+									"originalRequest": {
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{token}}",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"fullName\": \"Alice Johnson\",\n  \"email\": \"alice.johnson@example.com\",\n  \"bio\": \"Privacy advocate and blockchain enthusiast\"\n}"
+										},
+										"url": {
+											"raw": "{{api_url}}/user/profile",
+											"host": [
+												"{{api_url}}"
+											],
+											"path": [
+												"user",
+												"profile"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"id\": \"user123\",\n  \"username\": \"alice_smith\",\n  \"email\": \"alice.johnson@example.com\",\n  \"is_active\": true,\n  \"fullName\": \"Alice Johnson\",\n  \"bio\": \"Privacy advocate and blockchain enthusiast\",\n  \"avatarUrl\": \"https://i.pravatar.cc/150?u=alice_smith\",\n  \"joinDate\": \"2023-03-15T12:00:00Z\",\n  \"lastActive\": \"2023-06-20T15:30:00Z\",\n  \"verifiedEmail\": true,\n  \"verifiedPhone\": false,\n  \"twoFactorEnabled\": false\n}"
+								}
+							]
+						},
+						{
+							"name": "Get User Preferences",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{api_url}}/user/preferences",
+									"host": [
+										"{{api_url}}"
+									],
+									"path": [
+										"user",
+										"preferences"
+									]
+								},
+								"description": "Retrieves the user's privacy and consent preferences."
+							},
+							"response": [
+								{
+									"name": "Get User Preferences - Success",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{token}}",
+												"type": "text"
+											}
+										],
+										"url": {
+											"raw": "{{api_url}}/user/preferences",
+											"host": [
+												"{{api_url}}"
+											],
+											"path": [
+												"user",
+												"preferences"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"privacyPosture\": \"balanced\",\n  \"consentPosture\": \"moderate\",\n  \"autoAcceptTrustedSources\": true,\n  \"autoRejectLowTrust\": true,\n  \"minimumTrustTier\": 3\n}"
+								}
+							]
+						},
+						{
+							"name": "Update User Preferences",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"privacyPosture\": \"conservative\",\n  \"consentPosture\": \"strict\",\n  \"autoAcceptTrustedSources\": false,\n  \"autoRejectLowTrust\": true,\n  \"minimumTrustTier\": 4\n}"
+								},
+								"url": {
+									"raw": "{{api_url}}/user/preferences",
+									"host": [
+										"{{api_url}}"
+									],
+									"path": [
+										"user",
+										"preferences"
+									]
+								},
+								"description": "Updates the user's privacy and consent preferences."
+							},
+							"response": [
+								{
+									"name": "Update User Preferences - Success",
+									"originalRequest": {
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{token}}",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"privacyPosture\": \"conservative\",\n  \"consentPosture\": \"strict\",\n  \"autoAcceptTrustedSources\": false,\n  \"autoRejectLowTrust\": true,\n  \"minimumTrustTier\": 4\n}"
+										},
+										"url": {
+											"raw": "{{api_url}}/user/preferences",
+											"host": [
+												"{{api_url}}"
+											],
+											"path": [
+												"user",
+												"preferences"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"success\": true,\n  \"message\": \"Preferences updated successfully\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Get Notification Settings",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{api_url}}/user/notifications",
+									"host": [
+										"{{api_url}}"
+									],
+									"path": [
+										"user",
+										"notifications"
+									]
+								},
+								"description": "Retrieves the user's notification preferences."
+							},
+							"response": [
+								{
+									"name": "Get Notification Settings - Success",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{token}}",
+												"type": "text"
+											}
+										],
+										"url": {
+											"raw": "{{api_url}}/user/notifications",
+											"host": [
+												"{{api_url}}"
+											],
+											"path": [
+												"user",
+												"notifications"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"emailNotifications\": true,\n  \"pushNotifications\": true,\n  \"smsNotifications\": false,\n  \"preferredContactMethod\": \"email\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Update Notification Settings",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"emailNotifications\": true,\n  \"pushNotifications\": true,\n  \"smsNotifications\": true,\n  \"preferredContactMethod\": \"all\"\n}"
+								},
+								"url": {
+									"raw": "{{api_url}}/user/notifications",
+									"host": [
+										"{{api_url}}"
+									],
+									"path": [
+										"user",
+										"notifications"
+									]
+								},
+								"description": "Updates the user's notification preferences."
+							},
+							"response": [
+								{
+									"name": "Update Notification Settings - Success",
+									"originalRequest": {
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{token}}",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"emailNotifications\": true,\n  \"pushNotifications\": true,\n  \"smsNotifications\": true,\n  \"preferredContactMethod\": \"all\"\n}"
+										},
+										"url": {
+											"raw": "{{api_url}}/user/notifications",
+											"host": [
+												"{{api_url}}"
+											],
+											"path": [
+												"user",
+												"notifications"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"success\": true,\n  \"message\": \"Notification settings updated successfully\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Get Trust Score",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{api_url}}/user/trust-score",
+									"host": [
+										"{{api_url}}"
+									],
+									"path": [
+										"user",
+										"trust-score"
+									]
+								},
+								"description": "Retrieves the user's trust score and contributing factors."
+							},
+							"response": [
+								{
+									"name": "Get Trust Score - Success",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{token}}",
+												"type": "text"
+											}
+										],
+										"url": {
+											"raw": "{{api_url}}/user/trust-score",
+											"host": [
+												"{{api_url}}"
+											],
+											"path": [
+												"user",
+												"trust-score"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"overall_score\": 0.87,\n  \"data_quality_score\": 0.92,\n  \"participation_score\": 0.85,\n  \"consistency_score\": 0.84,\n  \"factors\": {\n    \"consent_compliance\": 0.95,\n    \"data_freshness\": 0.88,\n    \"response_rate\": 0.82,\n    \"verification_level\": 0.90,\n    \"review_accuracy\": 0.79\n  },\n  \"last_updated\": \"2023-06-18T14:22:31Z\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Get Compensation Breakdown",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{api_url}}/user/compensation-breakdown",
+									"host": [
+										"{{api_url}}"
+									],
+									"path": [
+										"user",
+										"compensation-breakdown"
+									]
+								},
+								"description": "Retrieves the user's compensation model breakdown."
+							},
+							"response": [
+								{
+									"name": "Get Compensation Breakdown - Success",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{token}}",
+												"type": "text"
+											}
+										],
+										"url": {
+											"raw": "{{api_url}}/user/compensation-breakdown",
+											"host": [
+												"{{api_url}}"
+											],
+											"path": [
+												"user",
+												"compensation-breakdown"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"base_rate\": 0.15,\n  \"quality_multiplier\": 1.25,\n  \"participation_bonus\": 0.05,\n  \"total_rate\": 0.23,\n  \"estimated_monthly\": 18.40,\n  \"historical_average\": 22.75\n}"
+								}
+							]
+						}
+					],
+					"description": "Endpoints for managing user profile, preferences, notification settings, trust scores, and compensation models."
+				}
+			],
+			"description": "Endpoints for managing user profile and preferences"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+} 

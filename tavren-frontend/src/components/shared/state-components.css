@@ -1,0 +1,103 @@
+/* Shared styles for state components */
+.loading-container,
+.error-container,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  margin: 1rem 0;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  min-height: 200px;
+}
+
+/* Loading State */
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: #3498db;
+  animation: spin 1s ease-in-out infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-message {
+  color: #666;
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Error State */
+.error-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.error-message {
+  color: #e74c3c;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  max-width: 80%;
+}
+
+.retry-button {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.retry-button:hover {
+  background-color: #c0392b;
+}
+
+/* Empty State */
+.empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.empty-state-title {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem 0;
+  color: #333;
+}
+
+.empty-state-message {
+  color: #666;
+  margin: 0 0 1.5rem 0;
+  max-width: 80%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .loading-container,
+  .error-container,
+  .empty-state {
+    padding: 1.5rem;
+    min-height: 150px;
+  }
+  
+  .loading-spinner {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .empty-state-icon,
+  .error-icon {
+    font-size: 2rem;
+  }
+} 

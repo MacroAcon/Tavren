@@ -23,9 +23,57 @@
 }
 
 .api-notice-content {
+  flex: 1;
   color: #5a5a5a;
 }
 
 .api-notice-content strong {
   color: #333;
+}
+
+.api-notice-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.status-success {
+  color: #2e7d32;
+}
+
+.status-warning {
+  color: #ed6c02;
+}
+
+.api-env {
+  padding: 2px 5px;
+  background-color: #eeeeee;
+  border-radius: 3px;
+  color: #333;
+  font-size: 11px;
+}
+
+.api-version {
+  padding: 2px 5px;
+  background-color: #e3f2fd;
+  border-radius: 3px;
+  color: #0277bd;
+  font-size: 11px;
+}
+
+.api-notice-info-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  margin-left: 8px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.api-notice-info-btn:hover {
+  opacity: 1;
 } 

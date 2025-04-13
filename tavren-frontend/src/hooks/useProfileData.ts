@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../stores';
+import apiClient from '../utils/apiClient';
+import { notifyError } from '../stores';
 
 export interface UserProfile {
   id: string;
@@ -79,29 +81,37 @@ export const useProfileData = () => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuthStore();
 
-  // Fetch profile data (mock implementation)
+  // Fetch profile data
   useEffect(() => {
     const loadProfile = async () => {
       try {
         setLoading(true);
         
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 800));
+        if (!user) {
+          setError('User not authenticated');
+          return;
+        }
         
-        // In a real app, you would fetch from an actual API
-        // const response = await fetch(`/api/users/${user?.username}/profile`);
-        // const data = await response.json();
-        
-        // Using mock data for now
-        const mockProfile = {
-          ...MOCK_PROFILE,
-          username: user?.username || MOCK_PROFILE.username,
-          // Use username as fallback for id if missing from user object
-          id: user?.username || MOCK_PROFILE.id
-        };
-        
-        setProfile(mockProfile);
-        setError(null);
+        // Use the API client to fetch profile data
+        try {
+          const profileData = await apiClient.get<UserProfile>('/user/profile');
+          setProfile(profileData);
+          setError(null);
+        } catch (apiError) {
+          console.error('API error:', apiError);
+          // Fall back to mock data if API fails (for demo purposes)
+          const mockProfile = {
+            ...MOCK_PROFILE,
+            username: user?.username || MOCK_PROFILE.username,
+            id: user?.username || MOCK_PROFILE.id
+          };
+          
+          setProfile(mockProfile);
+          // Don't set error when falling back to mock data in development
+          if (import.meta.env.MODE === 'production') {
+            setError('Failed to load profile data from API');
+          }
+        }
       } catch (err) {
         setError('Failed to load profile data');
         console.error('Error loading profile:', err);
@@ -120,23 +130,23 @@ export const useProfileData = () => {
     try {
       setLoading(true);
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In a real app, you would send to an actual API
-      // const response = await fetch(`/api/users/${user?.username}/profile`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(updatedFields)
-      // });
-      // const data = await response.json();
-      
-      // Update local state
-      setProfile(prevProfile => 
-        prevProfile ? { ...prevProfile, ...updatedFields } : null
-      );
-      
-      return true;
+      // Use the API client to update profile data
+      try {
+        const updatedProfile = await apiClient.patch<UserProfile>('/user/profile', updatedFields);
+        setProfile(updatedProfile);
+        return true;
+      } catch (apiError) {
+        console.error('API error updating profile:', apiError);
+        // For demo, still update local state even if API fails
+        if (import.meta.env.MODE !== 'production') {
+          setProfile(prevProfile => 
+            prevProfile ? { ...prevProfile, ...updatedFields } : null
+          );
+          return true;
+        }
+        notifyError('Failed to update profile on server');
+        return false;
+      }
     } catch (err) {
       setError('Failed to update profile');
       console.error('Error updating profile:', err);

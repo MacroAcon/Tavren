@@ -31,6 +31,7 @@ from .routers.buyer_data import buyer_data_router
 from .routers.llm_router import llm_router
 from .routers.embedding_router import embedding_router
 from app.routers import users, data, consent, payment, embeddings, evaluation
+from .routers import user_router
 
 # Import exception handlers
 from .exceptions import register_exception_handlers
@@ -136,6 +137,7 @@ app.include_router(consent.router)
 app.include_router(payment.router)
 app.include_router(embeddings.router)
 app.include_router(evaluation.router)  # Add the evaluation router
+app.include_router(user_router)  # Add the user router
 
 # For direct execution with Python
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Offer, OfferFilters, OfferFeedState } from '../types/offers';
-import { getOffers, getOfferById, getRecommendedOffers } from '../mock/offerService';
+import apiClient from '../utils/apiClient';
 
 interface OfferStoreActions {
   // Getters
@@ -11,10 +11,11 @@ interface OfferStoreActions {
   fetchOffers: (resetPage?: boolean) => Promise<void>;
   fetchOfferById: (id: string) => Promise<Offer | null>;
   fetchRecommendedOffers: (userId: string, count?: number) => Promise<Offer[]>;
+  acceptOffer: (offerId: string) => Promise<boolean>;
   setSelectedOffer: (offer: Offer | null) => void;
   updateFilters: (filters: Partial<OfferFilters>) => void;
   clearFilters: () => void;
-  rejectOffer: (offerId: string) => void;
+  rejectOffer: (offerId: string) => Promise<boolean>;
   nextPage: () => void;
   resetPage: () => void;
 }
@@ -52,19 +53,33 @@ export const useOfferStore = create<OfferStore>()(
             set({ page: 1 });
           }
           
-          const { offers, hasMore } = await getOffers(
-            get().filters, 
-            get().page, 
-            10 // Page size
-          );
+          const params = {
+            ...get().filters,
+            page: get().page,
+            limit: 10
+          };
+          
+          const response = await apiClient.get<{
+            offers: Offer[],
+            pagination: {
+              totalCount: number,
+              page: number,
+              pageSize: number,
+              hasMore: boolean
+            }
+          }>('/offers', { params });
           
           // If page is 1, replace offers. Otherwise, append to existing
           if (get().page === 1) {
-            set({ offers, hasMore, loading: false });
+            set({ 
+              offers: response.offers, 
+              hasMore: response.pagination.hasMore, 
+              loading: false 
+            });
           } else {
             set({ 
-              offers: [...get().offers, ...offers], 
-              hasMore, 
+              offers: [...get().offers, ...response.offers], 
+              hasMore: response.pagination.hasMore, 
               loading: false 
             });
           }
@@ -79,11 +94,8 @@ export const useOfferStore = create<OfferStore>()(
       fetchOfferById: async (id: string) => {
         try {
           set({ loading: true, error: null });
-          const offer = await getOfferById(id);
-          if (offer) {
-            set({ selectedOffer: offer });
-          }
-          set({ loading: false });
+          const offer = await apiClient.get<Offer>(`/offers/${id}`);
+          set({ selectedOffer: offer, loading: false });
           return offer;
         } catch (error) {
           set({ 
@@ -96,13 +108,29 @@ export const useOfferStore = create<OfferStore>()(
 
       fetchRecommendedOffers: async (userId: string, count = 3) => {
         try {
-          const recommendations = await getRecommendedOffers(userId, count);
+          const params = { count };
+          const recommendations = await apiClient.get<Offer[]>('/offers/recommended', { params });
           return recommendations;
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to fetch recommendations' 
           });
           return [];
+        }
+      },
+      
+      acceptOffer: async (offerId: string) => {
+        try {
+          set({ loading: true });
+          const response = await apiClient.post<{ success: boolean }>(`/offers/${offerId}/accept`);
+          set({ loading: false });
+          return response.success;
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to accept offer',
+            loading: false
+          });
+          return false;
         }
       },
 
@@ -121,11 +149,21 @@ export const useOfferStore = create<OfferStore>()(
         set({ filters: {}, page: 1 });
       },
 
-      rejectOffer: (offerId: string) => {
-        set({ 
-          rejectedOfferIds: [...get().rejectedOfferIds, offerId],
-          offers: get().offers.filter(offer => offer.id !== offerId)
-        });
+      rejectOffer: async (offerId: string) => {
+        try {
+          await apiClient.post<{ success: boolean }>(`/offers/${offerId}/reject`);
+          
+          set({ 
+            rejectedOfferIds: [...get().rejectedOfferIds, offerId],
+            offers: get().offers.filter(offer => offer.id !== offerId)
+          });
+          return true;
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to reject offer' 
+          });
+          return false;
+        }
       },
 
       nextPage: () => {

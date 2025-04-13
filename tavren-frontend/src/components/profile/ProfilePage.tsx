@@ -3,9 +3,11 @@ import UserProfile from './UserProfile';
 import PrivacyPreferences from './PrivacyPreferences';
 import NotificationSettings from './NotificationSettings';
 import AccountSecurity from './AccountSecurity';
+import TrustScoreExplainer from './TrustScoreExplainer';
+import CompensationModel from './CompensationModel';
 import './profile.css';
 
-type ProfileTab = 'profile' | 'privacy' | 'notifications' | 'security';
+type ProfileTab = 'profile' | 'privacy' | 'notifications' | 'security' | 'trust' | 'compensation';
 
 const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ProfileTab>('profile');
@@ -20,6 +22,10 @@ const ProfilePage: React.FC = () => {
         return <NotificationSettings />;
       case 'security':
         return <AccountSecurity />;
+      case 'trust':
+        return <TrustScoreExplainer />;
+      case 'compensation':
+        return <CompensationModel />;
       default:
         return <UserProfile />;
     }
@@ -60,6 +66,22 @@ const ProfilePage: React.FC = () => {
         >
           <span className="tab-icon security-icon"></span>
           Security
+        </button>
+        
+        <button 
+          className={`tab-button ${activeTab === 'trust' ? 'active' : ''}`}
+          onClick={() => setActiveTab('trust')}
+        >
+          <span className="tab-icon trust-icon"></span>
+          Trust Score
+        </button>
+        
+        <button 
+          className={`tab-button ${activeTab === 'compensation' ? 'active' : ''}`}
+          onClick={() => setActiveTab('compensation')}
+        >
+          <span className="tab-icon compensation-icon"></span>
+          Compensation
         </button>
       </div>
       

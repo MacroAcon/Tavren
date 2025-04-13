@@ -827,4 +827,250 @@ input:checked + .toggle-slider:before {
 
 .profile-error {
   color: #c62828;
+}
+
+/* Trust Score styles */
+.trust-score-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.score-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1.5rem;
+}
+
+.main-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 2rem;
+}
+
+.score-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  font-size: 1.8rem;
+  border: 6px solid;
+}
+
+.score-high {
+  border-color: #4CAF50;
+  color: #4CAF50;
+}
+
+.score-medium {
+  border-color: #FFC107;
+  color: #FFC107;
+}
+
+.score-low {
+  border-color: #F44336;
+  color: #F44336;
+}
+
+.score-components {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.score-component {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100px;
+}
+
+.component-value {
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.component-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.factors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.factor-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.factor-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.factor-name {
+  font-weight: 500;
+}
+
+.factor-score {
+  font-weight: bold;
+}
+
+.factor-bar-container {
+  height: 8px;
+  background-color: var(--bg-subtle);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.factor-bar {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.score-info {
+  margin-bottom: 1.5rem;
+}
+
+.score-explainer {
+  font-style: italic;
+  color: var(--text-secondary);
+  margin: 1rem 0;
+}
+
+.improvement-tips {
+  padding-left: 1.5rem;
+  margin-top: 1rem;
+}
+
+.improvement-tips li {
+  margin-bottom: 0.75rem;
+}
+
+/* Compensation model styles */
+.compensation-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.compensation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1.5rem;
+}
+
+.compensation-card {
+  flex: 1;
+  min-width: 180px;
+  padding: 1.25rem;
+  background-color: var(--bg-subtle);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.compensation-card h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+}
+
+.rate-value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--accent-color);
+  margin-bottom: 0.25rem;
+}
+
+.rate-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.compensation-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.calculation-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.calculation-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: 1rem;
+  padding: 0.75rem;
+  background-color: var(--bg-subtle);
+  border-radius: 6px;
+  align-items: center;
+}
+
+.calc-label {
+  font-weight: 500;
+}
+
+.calc-value {
+  font-weight: 600;
+  text-align: right;
+}
+
+.calc-description {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.total-row {
+  border: 2px solid var(--accent-color);
+  background-color: rgba(var(--accent-color-rgb), 0.05);
+}
+
+.compensation-tips {
+  padding-left: 1.5rem;
+  margin-top: 1rem;
+}
+
+.compensation-tips li {
+  margin-bottom: 0.75rem;
+}
+
+/* Icons for new tabs */
+.trust-icon::before {
+  content: "⭐";
+}
+
+.compensation-icon::before {
+  content: "💰";
 } 

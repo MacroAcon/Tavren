@@ -11,6 +11,7 @@ import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import NotificationSystem from './components/shared/NotificationSystem';
 import MobileNavigation from './components/shared/MobileNavigation';
 import OfflineIndicator from './components/shared/OfflineIndicator';
+import QAHelper from './components/shared/QAHelper';
 import { 
   WalletDashboard, 
   PaymentMethodManagement, 
@@ -56,6 +57,22 @@ function App() {
   // Default ID for testing or when user is not fully loaded
   const defaultUserId = 'user1';
   const userId = user?.username || defaultUserId;
+
+  // Define components that are still using mock data
+  const mockDataComponents = [
+    'Offers Feed',
+    'ConsentDashboard',
+    'TrustVisualization'
+  ];
+
+  // Define API versions for different endpoints
+  const apiVersions = {
+    'users': '1.0',
+    'offers': '1.1',
+    'wallet': '1.0',
+    'consent': '0.9',
+    'trust': '0.8'
+  };
 
   return (
     <Router>
@@ -160,6 +177,12 @@ function App() {
         
         {/* Offline Indicator */}
         <OfflineIndicator />
+        
+        {/* QA Helper - Hidden but available in console */}
+        <QAHelper 
+          mockDataComponents={mockDataComponents}
+          apiVersions={apiVersions}
+        />
       </div>
     </Router>
   );
