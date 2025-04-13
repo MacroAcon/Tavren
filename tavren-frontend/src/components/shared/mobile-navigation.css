@@ -1,0 +1,273 @@
+/* Mobile Navigation Styles */
+
+/* Only show mobile components on small screens */
+.mobile-header,
+.mobile-drawer,
+.bottom-nav,
+.drawer-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Mobile Header */
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: #ffffff;
+    border-bottom: 1px solid #eaeaea;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    z-index: 100;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .mobile-header-title {
+    flex: 1;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: #333;
+  }
+
+  /* Hamburger Button */
+  .hamburger-button {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 24px;
+    height: 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 110;
+  }
+
+  .hamburger-line {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background-color: #333;
+    transition: all 0.3s ease-in-out;
+  }
+
+  /* Active hamburger (X shape) */
+  .hamburger-button[aria-expanded="true"] .hamburger-line:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+  }
+
+  .hamburger-button[aria-expanded="true"] .hamburger-line:nth-child(2) {
+    opacity: 0;
+  }
+
+  .hamburger-button[aria-expanded="true"] .hamburger-line:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+  }
+
+  /* Drawer Navigation */
+  .mobile-drawer {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background-color: white;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .mobile-drawer.open {
+    transform: translateX(0);
+  }
+
+  .drawer-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+
+  .drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #eaeaea;
+  }
+
+  .drawer-title {
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: #333;
+  }
+
+  .drawer-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+  }
+
+  .drawer-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 0;
+  }
+
+  .drawer-nav a {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: #333;
+    text-decoration: none;
+    transition: background-color 0.2s;
+  }
+
+  .drawer-nav a:hover {
+    background-color: #f5f5f5;
+  }
+
+  .drawer-nav a.active {
+    background-color: #f0f7ff;
+    color: #4a90e2;
+    font-weight: 500;
+  }
+
+  .nav-icon {
+    margin-right: 0.75rem;
+    font-size: 1.25rem;
+  }
+
+  .drawer-footer {
+    padding: 1rem;
+    border-top: 1px solid #eaeaea;
+  }
+
+  .drawer-footer .logout-button {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #f8f8f8;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .drawer-footer .logout-button:hover {
+    background-color: #f0f0f0;
+  }
+
+  /* Bottom Navigation */
+  .bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background-color: white;
+    border-top: 1px solid #eaeaea;
+    z-index: 99;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .bottom-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    height: 100%;
+    color: #666;
+    text-decoration: none;
+    font-size: 0.75rem;
+    padding: 0.25rem 0;
+    position: relative;
+  }
+
+  .bottom-nav a.active {
+    color: #4a90e2;
+  }
+
+  .bottom-nav a.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 25%;
+    right: 25%;
+    height: 3px;
+    background-color: #4a90e2;
+    border-radius: 3px 3px 0 0;
+  }
+
+  .bottom-nav-icon {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .bottom-nav-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  /* Add padding to main content for fixed header and nav */
+  body {
+    padding-top: 56px;  /* Header height */
+    padding-bottom: 56px; /* Bottom nav height */
+  }
+
+  /* Active link feedback on touch */
+  .drawer-nav a:active,
+  .bottom-nav a:active {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  /* Tap highlight feedback */
+  a, button {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    position: relative;
+    overflow: hidden;
+  }
+
+  a::after, button::after {
+    content: '';
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+    background-repeat: no-repeat;
+    background-position: 50%;
+    transform: scale(10, 10);
+    opacity: 0;
+    transition: transform .3s, opacity .5s;
+  }
+
+  a:active::after, button:active::after {
+    transform: scale(0, 0);
+    opacity: .1;
+    transition: 0s;
+  }
+} 

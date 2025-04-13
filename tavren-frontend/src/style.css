@@ -299,3 +299,96 @@ header nav a:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  /* Hide desktop header on mobile */
+  .desktop-header {
+    display: none;
+  }
+
+  /* Adjust main app container for mobile */
+  .app-container {
+    padding: 0.5rem;
+    max-width: 100%;
+  }
+
+  /* Make main content full width and add padding for fixed headers */
+  .main-content {
+    width: 100%;
+    padding-top: 60px; /* Account for fixed header */
+    padding-bottom: 60px; /* Account for bottom nav */
+  }
+
+  /* Adjust welcome container/dashboard */
+  .welcome-container {
+    padding: 1rem;
+    margin-top: 1rem;
+  }
+
+  .welcome-container h2 {
+    font-size: 1.5rem;
+  }
+
+  .dashboard-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dashboard-card {
+    padding: 1rem;
+  }
+
+  .dashboard-card h3 {
+    font-size: 1.1rem;
+  }
+
+  /* Form adjustments for touch */
+  input, select, textarea, button {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    padding: 0.75rem; /* Larger touch targets */
+  }
+
+  .form-group input {
+    padding: 0.75rem;
+  }
+
+  /* Larger buttons for touch targets */
+  button, .button {
+    min-height: 44px; /* Minimum touch target size */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Adjust dialogs and modals */
+  .dialog, .confirmation-dialog {
+    width: 90%;
+    max-height: 80vh;
+  }
+  
+  /* Make cards full width */
+  .card {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+/* Make sure scrolling works properly on iOS */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 0) {
+  body {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Mobile adjustments for login */
+@media (max-width: 768px) {
+  .login-container {
+    max-width: 100%;
+    margin: 1rem auto;
+    padding: 1.5rem;
+    box-shadow: none;
+    border: 1px solid #eee;
+  }
+}

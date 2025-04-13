@@ -424,4 +424,138 @@
   color: #666;
   max-width: 400px;
   margin: 0 auto 16px;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 767px) {
+  .wallet-container {
+    padding: 12px;
+  }
+  
+  .wallet-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .wallet-actions {
+    width: 100%;
+  }
+  
+  .wallet-actions button {
+    width: 100%;
+    min-height: 48px; /* Larger touch target */
+  }
+  
+  .balance-card {
+    padding: 16px;
+    border-radius: 8px;
+  }
+  
+  .balance-amount {
+    font-size: 2rem;
+  }
+  
+  .balance-stat-value {
+    font-size: 1.2rem;
+  }
+  
+  .balance-stat-label {
+    font-size: 0.7rem;
+  }
+  
+  /* Make transaction rows easier to tap */
+  .transaction-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 
+      "details details"
+      "amount status";
+    gap: 8px;
+    padding: 16px 12px;
+    min-height: 72px; /* Minimum touch target height */
+    position: relative;
+  }
+  
+  .transaction-row:active {
+    background-color: #f0f0f0; /* Touch feedback */
+  }
+  
+  .transaction-details {
+    grid-area: details;
+    margin-bottom: 8px;
+  }
+  
+  .transaction-amount {
+    grid-area: amount;
+    text-align: left;
+  }
+  
+  .transaction-status {
+    grid-area: status;
+    text-align: right;
+    margin-left: auto;
+  }
+  
+  /* Payment methods */
+  .payment-method-card {
+    flex-direction: column;
+    margin-bottom: 16px;
+    padding: 16px;
+  }
+  
+  .payment-method-actions {
+    width: 100%;
+    margin-top: 12px;
+    justify-content: space-between;
+  }
+  
+  .payment-method-actions button {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+  }
+  
+  /* Form controls */
+  .form-control, 
+  .form-select,
+  .btn {
+    min-height: 48px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    border-radius: 8px;
+  }
+  
+  /* Give more space to selects on mobile */
+  select.form-control {
+    padding-right: 32px; /* Space for dropdown icon */
+    background-position: right 12px center;
+  }
+  
+  /* Payout settings */
+  .payout-form > div {
+    margin-bottom: 16px;
+  }
+  
+  .payout-form label {
+    margin-bottom: 8px;
+    display: block;
+  }
+  
+  /* Make buttons more prominent and easier to tap */
+  .btn-block {
+    width: 100%;
+    padding: 12px;
+    min-height: 48px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+  }
+  
+  /* Add active state for mobile */
+  .btn:active {
+    opacity: 0.8;
+    transform: translateY(1px);
+  }
 } 

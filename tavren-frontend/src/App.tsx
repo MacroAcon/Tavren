@@ -9,12 +9,16 @@ import DataPackageHistory from './components/DataPackageHistory';
 import TrustVisualization from './components/TrustVisualization';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import NotificationSystem from './components/shared/NotificationSystem';
+import MobileNavigation from './components/shared/MobileNavigation';
 import { 
   WalletDashboard, 
   PaymentMethodManagement, 
   TransactionHistory, 
   PayoutSettings 
 } from './components/wallet';
+import OffersPage from './components/offers/OffersPage';
+import OfferDetail from './components/offers/OfferDetail';
+import ProfilePage from './components/profile';
 
 // Import from our new stores
 import { 
@@ -22,6 +26,8 @@ import {
   useOnboardingStore,
   notifyInfo
 } from './stores';
+
+import './components/shared/mobile-navigation.css';
 
 function App() {
   // Use auth store instead of AuthContext
@@ -53,7 +59,8 @@ function App() {
   return (
     <Router>
       <div className="app-container">
-        <header>
+        {/* Desktop Header - Hidden on mobile */}
+        <header className="desktop-header">
           <h1>Tavren Data Management</h1>
           {isAuthenticated && isOnboardingCompleted && (
             <div className="header-controls">
@@ -65,6 +72,8 @@ function App() {
                 <Link to="/trust">Trust Visualizer</Link>
                 <Link to="/agent-exchanges">Agent Exchanges</Link>
                 <Link to="/wallet">Wallet</Link>
+                <Link to="/offers">Offers</Link>
+                <Link to="/profile">Profile</Link>
               </nav>
               <button onClick={logout} className="logout-button">
                 Logout
@@ -73,7 +82,12 @@ function App() {
           )}
         </header>
 
-        <main>
+        {/* Mobile Navigation - Shows on small screens */}
+        {isAuthenticated && isOnboardingCompleted && (
+          <MobileNavigation onLogout={logout} />
+        )}
+
+        <main className="main-content">
           {!isAuthenticated ? (
             <Login />
           ) : !isOnboardingCompleted ? (
@@ -105,6 +119,14 @@ function App() {
                       <h3>Your Wallet</h3>
                       <p>Manage earnings, payment methods and payouts</p>
                     </div>
+                    <div className="dashboard-card" onClick={() => window.location.href = '/offers'}>
+                      <h3>Offer Feed</h3>
+                      <p>Browse and accept data-sharing offers</p>
+                    </div>
+                    <div className="dashboard-card" onClick={() => window.location.href = '/profile'}>
+                      <h3>Profile & Preferences</h3>
+                      <p>Manage your profile, privacy settings, and preferences</p>
+                    </div>
                   </div>
                 </div>
               } />
@@ -121,6 +143,13 @@ function App() {
               <Route path="/wallet/payment-methods" element={<PaymentMethodManagement />} />
               <Route path="/wallet/transactions" element={<TransactionHistory />} />
               <Route path="/wallet/payout-settings" element={<PayoutSettings />} />
+              
+              {/* Offer Routes */}
+              <Route path="/offers" element={<OffersPage />} />
+              <Route path="/offers/:offerId" element={<OfferDetail />} />
+              
+              {/* Profile Routes */}
+              <Route path="/profile" element={<ProfilePage />} />
             </Routes>
           )}
         </main>

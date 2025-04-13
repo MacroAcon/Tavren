@@ -1,0 +1,389 @@
+/* Education Components Styling */
+
+.education-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.education-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.education-header-icon {
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.education-title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.education-subtitle {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin: 0.5rem 0 1.5rem;
+}
+
+.education-section {
+  margin-bottom: 2rem;
+  background-color: var(--surface-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.education-section-title {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-top: 0;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.education-section-content {
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.education-card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  background-color: var(--card-bg);
+}
+
+.education-card-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.education-visual {
+  margin: 1.5rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.education-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.education-metric {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.education-metric-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--highlight-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--highlight-color);
+}
+
+.education-metric-title {
+  font-weight: 500;
+  margin: 0;
+}
+
+.education-metric-value {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.education-tooltip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.education-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.education-table th,
+.education-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.education-table th {
+  font-weight: 500;
+  color: var(--text-primary);
+  background-color: var(--table-header-bg);
+}
+
+.education-table td {
+  color: var(--text-secondary);
+}
+
+.education-collapse-trigger {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+}
+
+.education-collapse-content {
+  padding: 1rem 0;
+}
+
+/* Visual indicators */
+.trust-score-indicator {
+  height: 10px;
+  border-radius: 5px;
+  background-color: #e9ecef;
+  position: relative;
+  overflow: hidden;
+  margin: 0.5rem 0;
+}
+
+.trust-score-indicator-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s ease;
+}
+
+.trust-level-high .trust-score-indicator-fill {
+  background-color: #40c057;
+}
+
+.trust-level-medium .trust-score-indicator-fill {
+  background-color: #fab005;
+}
+
+.trust-level-low .trust-score-indicator-fill {
+  background-color: #fa5252;
+}
+
+/* Dialog styles */
+.education-dialog {
+  max-width: 800px;
+  width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Button sizes */
+.button-small {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.button-large {
+  font-size: 1.1rem;
+  padding: 0.75rem 1.5rem;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+  .education-container {
+    padding: 1rem 0.75rem;
+    max-width: 100%;
+  }
+  
+  .education-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .education-header-icon {
+    font-size: 1.75rem;
+  }
+  
+  .education-title {
+    font-size: 1.5rem;
+  }
+  
+  .education-subtitle {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .education-section {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+  }
+  
+  .education-section-title {
+    font-size: 1.2rem;
+  }
+  
+  .education-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .education-dialog {
+    width: 95vw;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+  
+  /* Make collapsible sections more touch-friendly */
+  .education-collapse-trigger {
+    padding: 0.75rem 0;
+    min-height: 44px; /* Touch target size */
+  }
+  
+  /* Add touch feedback */
+  .education-collapse-trigger:active,
+  .button:active {
+    opacity: 0.7;
+  }
+  
+  /* Optimize table for mobile */
+  .education-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .education-table th,
+  .education-table td {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  /* Collapse complex tables on mobile */
+  .education-table.collapse-mobile {
+    display: block;
+  }
+  
+  .education-table.collapse-mobile thead {
+    display: none;
+  }
+  
+  .education-table.collapse-mobile tbody,
+  .education-table.collapse-mobile tr {
+    display: block;
+    width: 100%;
+  }
+  
+  .education-table.collapse-mobile td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .education-table.collapse-mobile td:before {
+    content: attr(data-label);
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: left;
+    padding-right: 0.5rem;
+  }
+  
+  /* Make controls larger for touch */
+  .education-card {
+    padding: 0.75rem;
+  }
+  
+  /* Optimize tooltips for touch */
+  .education-tooltip {
+    padding: 0.25rem;
+    margin-left: 0.25rem;
+  }
+  
+  /* Add scroll indicators for horizontal scrolling */
+  .scroll-indicator-container {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .scroll-indicator {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    pointer-events: none;
+    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(to right, rgba(255,255,255,0.9), rgba(255,255,255,0));
+    z-index: 2;
+  }
+  
+  .scroll-indicator.left {
+    left: 0;
+    display: none;
+  }
+  
+  .scroll-indicator.right {
+    right: 0;
+    transform: rotate(180deg);
+  }
+  
+  .scroll-indicator.hidden {
+    display: none;
+  }
+  
+  /* Ripple effect for touch feedback */
+  .touch-ripple {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .touch-ripple::after {
+    content: '';
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.1) 10%, transparent 10.01%);
+    background-repeat: no-repeat;
+    background-position: 50%;
+    transform: scale(10, 10);
+    opacity: 0;
+    transition: transform .3s, opacity .5s;
+  }
+  
+  .touch-ripple:active::after {
+    transform: scale(0, 0);
+    opacity: .3;
+    transition: 0s;
+  }
+} 

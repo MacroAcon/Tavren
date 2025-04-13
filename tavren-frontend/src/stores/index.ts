@@ -52,4 +52,8 @@ export {
   selectIsLoadingWallet,
   selectDefaultPaymentMethod
 } from './walletStore';
-export type { WalletState } from './walletStore'; 
+export type { WalletState } from './walletStore';
+
+// Offer store
+export { useOfferStore } from './offerStore';
+export type { OfferFeedState } from '../types/offers'; 
