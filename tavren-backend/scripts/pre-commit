@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# Pre-commit Git hook to prevent accidental credential commits
+# Install this hook with: cp tavren-backend/scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+# Terminal colors
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Running security pre-commit checks...${NC}"
+
+# Check for sensitive files
+SENSITIVE_FILES=$(git diff --cached --name-only | grep -E '\.env$|\.pem$|\.key$|\.pfx$|\.p12$|credentials\.json$')
+if [ -n "$SENSITIVE_FILES" ]; then
+    echo -e "${RED}ERROR: Attempting to commit sensitive files:${NC}"
+    echo "$SENSITIVE_FILES"
+    echo -e "${YELLOW}Remove these files from your commit with:${NC}"
+    echo "  git reset HEAD <file>..."
+    exit 1
+fi
+
+# Patterns to check in diff content
+SENSITIVE_PATTERNS=(
+    # API keys and tokens
+    "api[_-]key[[:space:]]*=[[:space:]]*['\"a-zA-Z0-9]{10,}"
+    "api[_-]secret[[:space:]]*=[[:space:]]*['\"a-zA-Z0-9]{10,}"
+    "secret[[:space:]]*=[[:space:]]*['\"a-zA-Z0-9]{10,}"
+    "password[[:space:]]*=[[:space:]]*['\"a-zA-Z0-9]{8,}"
+    "access_token[[:space:]]*=[[:space:]]*['\"a-zA-Z0-9_\.\-]{10,}"
+    
+    # AWS
+    "AKIA[0-9A-Z]{16}"
+    
+    # Database connection strings with credentials
+    "postgres(ql)?://[^:]+:[^@]+@"
+    "mysql://[^:]+:[^@]+@"
+    "mongodb://[^:]+:[^@]+@"
+    
+    # Private keys
+    "BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY"
+)
+
+# Get staged file list for scanning
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+for file in $STAGED_FILES; do
+    # Skip binary files
+    if $(file "$file" | grep -q 'text'); then
+        for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+            # Check if file contains sensitive information
+            git diff --cached --quiet -G"$pattern" "$file"
+            if [ $? -ne 0 ]; then
+                # Found a match!
+                echo -e "${RED}ERROR: Potential credential found in $file${NC}"
+                echo -e "${YELLOW}Matched pattern: $pattern${NC}"
+                echo ""
+                echo -e "${YELLOW}Offending content:${NC}"
+                git diff --cached -G"$pattern" "$file"
+                echo ""
+                echo -e "${YELLOW}To bypass this check (if you're CERTAIN this is a false positive):${NC}"
+                echo "  git commit --no-verify"
+                echo -e "${RED}But please double-check that you're not committing real credentials!${NC}"
+                exit 1
+            fi
+        done
+    fi
+done
+
+# All checks passed
+echo -e "${GREEN}No credentials detected in this commit.${NC}"
+exit 0 

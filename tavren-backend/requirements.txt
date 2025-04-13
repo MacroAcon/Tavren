@@ -1,25 +1,59 @@
-fastapi==0.105.0
-uvicorn[standard]==0.24.0 # Includes extras like httptools, websockets
-SQLAlchemy==2.0.23
-pydantic==2.3.0
-pydantic-settings # For centralized configuration
-python-dotenv==1.0.0 # For environment variable loading
-greenlet==3.1.1 # Often needed by SQLAlchemy
-requests # For the payout processor script
-python-multipart # Required for OAuth2 password flow form data
-slowapi # For rate limiting
-cryptography==42.0.0 # For encryption/decryption of data packages
+# FastAPI Framework
+fastapi==0.89.1
+uvicorn==0.20.0
+pydantic==1.10.4
+pydantic-settings==2.0.3
+python-dotenv==1.0.0
+
+# Authentication and Security
+python-jose==3.3.0
+python-multipart==0.0.6
+passlib==1.7.4
+bcrypt==4.0.1
+
+# Database
+sqlalchemy==2.0.1
+alembic==1.9.2
+asyncpg==0.27.0
+aiosqlite==0.18.0
+databases==0.7.0
+
+# API Documentation
+openapi-schema-pydantic==1.2.4
+
+# Testing
+pytest==7.2.1
+pytest-asyncio==0.20.3
+httpx==0.23.3
+
+# Redis (for caching and rate limiting)
+redis==4.5.1
+aioredis==2.0.1
+
+# ML/AI toolkit
+tiktoken==0.6.0 # For token counting and text chunking
+scikit-learn==1.3.0 # For vector operations
+numpy==1.24.3
+
+# Secrets Management (for security scripts)
+requests==2.31.0
+PyYAML==6.0.1
+
+# Development and Utilities
+black==23.1.0
+isort==5.12.0
+mypy==1.0.1
+ruff==0.0.54
+pre-commit==3.2.2
 
 # LLM and Embedding Dependencies
 aiohttp==3.9.3 # For async HTTP requests to LLM APIs
 sentence-transformers==2.3.1 # For local embedding processing
-numpy>=1.24.0 # Required for vector operations
-pgvector # For PostgreSQL vector extensions (if using Postgres)
-tiktoken==0.6.0 # For token counting and text chunking
+greenlet==3.1.1 # Often needed by SQLAlchemy
+slowapi # For rate limiting
+cryptography==42.0.0 # For encryption/decryption of data packages
 
 # Caching and performance
-redis>=5.0.0 # For Redis caching
-aioredis>=2.0.0 # For async Redis operations
 cachetools>=5.0.0 # For in-memory caching
 
 # Testing dependencies

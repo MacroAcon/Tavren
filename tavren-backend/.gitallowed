@@ -1,0 +1,20 @@
+# Allowlist for git-secrets patterns
+# Lines matching these patterns will be ignored by git-secrets
+
+# Example patterns - placeholder API keys, etc.
+PLACEHOLDER_REPLACE_WITH_SECURE_KEY
+PLACEHOLDER_REPLACE_WITH_SECURE_PASSWORD
+AKIAIOSFODNN7EXAMPLE
+wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+test_api_key_example
+your_secure_password
+
+# Environment variable placeholders in documentation
+\${API_SECRET}
+\${JWT_SECRET_KEY}
+\${DATA_ENCRYPTION_KEY}
+\${ADMIN_API_KEY}
+\${POSTGRES_PASSWORD}
+\${REDIS_PASSWORD}
+
+# Include more patterns as needed 

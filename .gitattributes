@@ -1,0 +1,13 @@
+# Git attributes for security
+*.zip diff=zip
+*.pdf diff=pdf
+*.jpg diff=exif
+*.png diff=exif
+*.docx diff=word
+*.xlsx diff=excel
+*.pptx diff=pptx
+
+# Treat these files as binary to avoid diff showing content
+*.env binary
+*.key binary
+*.pem binary

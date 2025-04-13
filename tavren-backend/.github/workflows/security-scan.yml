@@ -1,0 +1,57 @@
+name: Security Credential Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  # Manual trigger option
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Scan for credentials
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for thorough scanning
+      
+      - name: Set up environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git grep
+      
+      - name: Run credential scan
+        run: |
+          chmod +x ./scripts/scan_for_credentials.sh
+          ./scripts/scan_for_credentials.sh
+        continue-on-error: true  # Don't fail the build, just report
+
+      - name: Scan with trufflehog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+      
+      - name: Check gitignore for sensitive patterns
+        run: |
+          if ! grep -q "\.env" .gitignore; then
+            echo "::warning::.env files are not excluded in .gitignore"
+          fi
+          if ! grep -q "\.pem" .gitignore; then
+            echo "::warning::Private key files (*.pem) are not excluded in .gitignore"
+          fi
+          if ! grep -q "\.key" .gitignore; then
+            echo "::warning::Key files (*.key) are not excluded in .gitignore"
+          fi
+      
+      - name: Security report
+        run: |
+          echo "Security scan completed."
+          echo "Please review any warnings or errors above."
+          echo "For sensitive information found in git history, consider using git-filter-repo to clean the repository." 
