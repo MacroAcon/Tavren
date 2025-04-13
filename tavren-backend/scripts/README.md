@@ -218,4 +218,35 @@ python scripts/sync_secrets.py --env-file .env.production
 - Use appropriate environment settings for each deployment target
 - Follow the credential rotation policy for all environments
 - Keep secrets synchronized across all platforms
-- Document all security incidents and rotation activities 
+- Document all security incidents and rotation activities
+
+## Utility Scripts
+
+### `scan_for_credentials.sh`
+Scans the codebase for potentially exposed credentials using the patterns defined in `.gitallowed`.
+
+```bash
+./scripts/scan_for_credentials.sh
+```
+
+### `check_docker_security.sh`
+Performs basic security checks on the Docker configuration files.
+
+```bash
+./scripts/check_docker_security.sh
+```
+
+### `retail_visit_dp_analysis.py`
+Demonstrates differential privacy implementation for our retail store visit analysis use case. This script:
+- Generates mock store visit data
+- Applies differential privacy with various epsilon values
+- Shows how privacy level (epsilon) affects result accuracy
+- Analyzes privacy-utility tradeoffs
+
+Requirements: OpenDP library (`pip install opendp`)
+
+```bash
+python scripts/retail_visit_dp_analysis.py
+```
+
+The script will output a detailed analysis of how differential privacy affects the data, with insights on optimal epsilon values for our use case and potential biases introduced. It also generates a visualization saved as `dp_analysis_results.png`. 

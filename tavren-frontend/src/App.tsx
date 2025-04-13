@@ -8,10 +8,14 @@ import AgentInteractionInterface from './components/AgentInteractionInterface';
 import DataPackageHistory from './components/DataPackageHistory';
 import TrustVisualization from './components/TrustVisualization';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
-import NotificationSystem from './components/shared/NotificationSystem';
-import MobileNavigation from './components/shared/MobileNavigation';
-import OfflineIndicator from './components/shared/OfflineIndicator';
-import QAHelper from './components/shared/QAHelper';
+import { 
+  NotificationSystem, 
+  MobileNavigation, 
+  OfflineIndicator, 
+  QAHelper,
+  ABTestDebugger
+} from './components/shared';
+import ExampleWidget from './components/ExampleWidget';
 import { 
   WalletDashboard, 
   PaymentMethodManagement, 
@@ -62,7 +66,8 @@ function App() {
   const mockDataComponents = [
     'Offers Feed',
     'ConsentDashboard',
-    'TrustVisualization'
+    'TrustVisualization',
+    'YourDataAtWork'
   ];
 
   // Define API versions for different endpoints
@@ -92,6 +97,7 @@ function App() {
                 <Link to="/wallet">Wallet</Link>
                 <Link to="/offers">Offers</Link>
                 <Link to="/profile">Profile</Link>
+                <Link to="/example-widget">Data Impact</Link>
               </nav>
               <button onClick={logout} className="logout-button">
                 Logout
@@ -145,6 +151,10 @@ function App() {
                       <h3>Profile & Preferences</h3>
                       <p>Manage your profile, privacy settings, and preferences</p>
                     </div>
+                    <div className="dashboard-card" onClick={() => window.location.href = '/example-widget'}>
+                      <h3>Data Impact</h3>
+                      <p>See how your data contributes to collective value</p>
+                    </div>
                   </div>
                 </div>
               } />
@@ -155,6 +165,7 @@ function App() {
               <Route path="/agent-exchanges" element={<AgentExchangeHistory userId={userId} />} />
               <Route path="/agent-exchanges/:exchangeId" element={<AgentExchangeDetail />} />
               <Route path="/onboarding" element={<OnboardingFlow onComplete={handleOnboardingComplete} />} />
+              <Route path="/example-widget" element={<ExampleWidget />} />
               
               {/* Wallet Routes */}
               <Route path="/wallet" element={<WalletDashboard />} />
@@ -177,6 +188,9 @@ function App() {
         
         {/* Offline Indicator */}
         <OfflineIndicator />
+        
+        {/* A/B Test Debugger - Only visible with Alt+Shift+D in development */}
+        <ABTestDebugger testId="onboarding-value-proposition" />
         
         {/* QA Helper - Hidden but available in console */}
         <QAHelper 

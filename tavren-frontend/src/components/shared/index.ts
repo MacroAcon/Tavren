@@ -17,4 +17,10 @@ export { default as ApiNotice } from './ApiNotice';
 export { default as QAHelper } from './QAHelper';
 
 // Import all shared styles at once
-import './shared-components.css'; 
+import './shared-components.css';
+
+// Export shared components
+export { default as ABTestDebugger } from './ABTestDebugger';
+export { default as MobileNavigation } from './MobileNavigation';
+export { default as NotificationSystem } from './NotificationSystem';
+export { default as OfflineIndicator } from './OfflineIndicator'; 

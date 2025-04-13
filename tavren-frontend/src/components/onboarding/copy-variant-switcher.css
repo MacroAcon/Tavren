@@ -1,0 +1,38 @@
+/* Styles for variant switcher component */
+
+.variant-switcher {
+  position: relative;
+}
+
+/* Debug overlay shown when Alt+Shift+D is pressed */
+.debug-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 10px;
+  font-size: 12px;
+  z-index: 9999;
+  font-family: monospace;
+  border-bottom-left-radius: 5px;
+}
+
+.debug-overlay p {
+  margin: 5px 0;
+}
+
+.debug-overlay small {
+  display: block;
+  margin-top: 10px;
+  opacity: 0.7;
+}
+
+/* Applied to the component based on the current variant */
+.variant-switcher[data-variant="A"] {
+  /* Style customizations for Variant A if needed */
+}
+
+.variant-switcher[data-variant="B"] {
+  /* Style customizations for Variant B if needed */
+} 

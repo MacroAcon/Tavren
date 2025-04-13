@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { logConversionEvent, getStoredVariant } from '../../utils/analytics';
 
 interface InitialOfferPresentationProps {
   onComplete: () => void;
+  currentStep?: string;
 }
 
 // Mock offer data
@@ -25,10 +27,21 @@ const mockOffer = {
   }
 };
 
-const InitialOfferPresentation: React.FC<InitialOfferPresentationProps> = ({ onComplete }) => {
+const InitialOfferPresentation: React.FC<InitialOfferPresentationProps> = ({ 
+  onComplete,
+  currentStep = 'offer'
+}) => {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [offerAccepted, setOfferAccepted] = useState(false);
+  const [isAccepted, setIsAccepted] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  
+  // Log when the offer is viewed
+  useEffect(() => {
+    const variant = getStoredVariant('onboarding-value-proposition');
+    if (variant) {
+      logConversionEvent(variant, `${currentStep}_viewed`);
+    }
+  }, [currentStep]);
   
   const toggleExpand = (section: string) => {
     if (expanded === section) {
@@ -39,12 +52,25 @@ const InitialOfferPresentation: React.FC<InitialOfferPresentationProps> = ({ onC
   };
   
   const handleAccept = () => {
-    setOfferAccepted(true);
+    const variant = getStoredVariant('onboarding-value-proposition');
+    if (variant) {
+      logConversionEvent(variant, 'offer_accepted');
+    }
+    
+    setIsAccepted(true);
     setShowConfirmation(true);
-    // In a real implementation, you would send this acceptance to your API
+    setTimeout(() => {
+      onComplete();
+    }, 1500);
   };
   
-  const handleComplete = () => {
+  const handleDecline = () => {
+    const variant = getStoredVariant('onboarding-value-proposition');
+    if (variant) {
+      logConversionEvent(variant, 'offer_declined');
+    }
+    
+    // We still complete the flow even if declined
     onComplete();
   };
   
@@ -134,7 +160,7 @@ const InitialOfferPresentation: React.FC<InitialOfferPresentationProps> = ({ onC
               <div className="offer-controls">
                 <button 
                   className="secondary-button"
-                  onClick={() => onComplete()}
+                  onClick={handleDecline}
                 >
                   Skip for Now
                 </button>
@@ -162,7 +188,7 @@ const InitialOfferPresentation: React.FC<InitialOfferPresentationProps> = ({ onC
             </div>
             <button 
               className="primary-button"
-              onClick={handleComplete}
+              onClick={onComplete}
             >
               Continue to Dashboard
             </button>
