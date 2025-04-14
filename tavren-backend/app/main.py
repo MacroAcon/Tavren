@@ -57,10 +57,6 @@ limiter = Limiter(key_func=get_remote_address)
 # Async database engine (already defined in database.py)
 # from .database import async_engine # No need to import again if imported above
 
-# Create database tables - TODO: Move this to an async startup event or separate script
-# log.info(f"Creating database tables if they don't exist for DB: {settings.DATABASE_URL}")
-# Base.metadata.create_all(bind=engine) # Comment out sync creation
-
 # Create FastAPI app
 app = FastAPI(
     title="Tavren Backend API",
@@ -68,7 +64,20 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# --- Define Startup Event After App Creation ---
+# Create tables at startup instead of on import to avoid side effects
+@app.on_event("startup")
+async def create_tables():
+    """Create database tables on application startup."""
+    log.info("Creating database tables if they don't exist...")
+    try:
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        log.info("Database tables created successfully")
+    except Exception as e:
+        log.error(f"Error creating database tables: {str(e)}")
+        # Don't fail startup - tables might already exist or will be created by migrations
+
+# Add startup event for other initialization tasks
 @app.on_event("startup")
 async def startup_event():
     log.info("Running startup event...")
@@ -78,12 +87,6 @@ async def startup_event():
     if not data_dir.exists():
         log.info(f"Creating data directory: {data_dir}")
         data_dir.mkdir(parents=True, exist_ok=True)
-    
-    async with async_engine.begin() as conn:
-        log.info(f"Creating database tables if they don't exist for DB: {settings.DATABASE_URL}")
-        # await conn.run_sync(Base.metadata.drop_all) # Optional: Drop tables on startup for clean testing
-        await conn.run_sync(Base.metadata.create_all)
-    log.info("Database tables checked/created.")
 
 # Apply Rate Limiter to App
 app.state.limiter = limiter

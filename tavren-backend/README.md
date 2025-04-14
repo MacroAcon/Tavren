@@ -2,36 +2,53 @@
 
 A FastAPI-based backend for the Tavren platform, providing API endpoints for consent event tracking, wallet management, and buyer trust scoring.
 
-## Setup
+## Getting Started
 
-Follow these steps to set up the project locally:
+### Prerequisites
 
-1.  **Clone the repository** (if you haven't already):
-    ```bash
-    git clone <your-repo-url>
-    cd tavren-backend
-    ```
+- Python 3.9 or higher
+- PostgreSQL (for production) or SQLite (for development)
+- Redis (optional, for caching)
 
-2.  **Create and activate a virtual environment**:
-    *   On macOS/Linux:
-        ```bash
-        python3 -m venv venv
-        source venv/bin/activate
-        ```
-    *   On Windows:
-        ```bash
-        python -m venv venv
-        .\venv\Scripts\activate
-        ```
+### Installation
 
-3.  **Install dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+1. Clone the repository
+   ```bash
+   git clone https://github.com/yourusername/tavren.git
+   cd tavren/tavren-backend
+   ```
 
-4.  **Create an environment file**:
-    *   Copy the example environment file (if one exists) or create a new file named `.env` in the `tavren-backend/` directory.
-    *   Add the necessary environment variables (see "Environment Variables" section below).
+2. Create a virtual environment
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Set up environment variables
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+5. For Linux/macOS users, make scripts executable
+   ```bash
+   chmod +x scripts/linux_setup.sh
+   ./scripts/linux_setup.sh
+   ```
+
+6. Run the application
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+The application will be available at http://localhost:8000.
+
+API documentation is available at http://localhost:8000/docs.
 
 ## Architecture
 
@@ -135,95 +152,4 @@ Docker Compose provides a way to run the application and its dependencies (like 
     docker-compose up --build
     ```
     *   The `--build` flag ensures the backend image is built before starting.
-    *   Services will run in the foreground. Press `Ctrl+C` to stop.
-    *   To run in detached mode (background), use `docker-compose up -d --build`.
-3.  **Accessing the application**:
-    *   API: [http://localhost:8000](http://localhost:8000)
-    *   Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-    *   PostgreSQL DB (if needed for inspection): Connect to `localhost:5433` using the credentials in `docker-compose.yml` (user: `tavren_user`, password: `tavren_password`, db: `tavren_db`).
-4.  **Stopping the services**:
-    ```bash
-    # If running in foreground, press Ctrl+C
-    # If running in detached mode:
-    docker-compose down
-    ```
-
-## Testing
-
-The project uses `pytest` for testing. Tests are located in the `tests/` directory.
-
-### Running Tests Locally
-
-Tests utilize an in-memory SQLite database by default when run locally without Docker.
-
-```bash
-# Ensure virtual environment is active and requirements installed
-pytest
-```
-
-### Running Tests with Docker Compose
-
-This method runs tests against the PostgreSQL database defined in `docker-compose.yml`, providing a more integration-focused test environment.
-
-1.  **Ensure Docker Compose services are not already running** (`docker-compose down` if necessary).
-2.  **Run the test command**: This command starts the database container, waits for it to be healthy, then runs `pytest` inside a temporary backend container linked to the database.
-    ```bash
-    # From the project root (tavren-backend/)
-    docker-compose run --rm backend pytest tests
-    ```
-    *   `--rm`: Removes the temporary container after tests finish.
-    *   This uses the `DATABASE_URL` configured in `docker-compose.yml`.
-3.  **Cleanup**: The database container will stop automatically after the tests finish because the `backend` service it depends on exits.
-
-## API Documentation
-
-When the application is running, you can access the interactive API documentation at:
-
-- Swagger UI: http://127.0.0.1:8000/docs
-- ReDoc: http://127.0.0.1:8000/redoc
-
-## Future Improvements
-
-### Deployment
-
-- Add Dockerfile and docker-compose.yml for containerization
-- Configure CI/CD pipeline for automated testing and deployment
-- Create deployment configurations for popular cloud platforms
-
-### Technical Improvements
-
-- Add async support using SQLAlchemy 2.0's async features
-- Implement more advanced caching strategies
-- Add rate limiting for public-facing endpoints
-- Implement comprehensive metrics collection
-- Add health check endpoints
-
-### Features
-
-- Implement user authentication and authorization
-- Add support for webhooks for event-driven architecture
-- Create admin dashboard for managing consent events and payouts
-
-## Continuous Integration (CI)
-
-This project uses GitHub Actions for Continuous Integration. The workflow is defined in `.github/workflows/ci.yml`.
-
-On every push or pull request to the `main` or `develop` branches, the CI pipeline automatically performs the following:
-
-1.  **Checks out the code.**
-2.  **Builds the Docker image.**
-3.  **Starts a PostgreSQL container using Docker Compose.**
-4.  **Waits for the database to be healthy.**
-5.  **Runs the `pytest` test suite** inside a Docker container connected to the test database.
-6.  **Runs the `ruff` linter** inside a Docker container to check code style and quality.
-7.  **Cleans up Docker Compose services.**
-
-This ensures that code changes are automatically tested and linted before merging.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Create a new Pull Request 
+    *   Services will run in the foreground. Press `

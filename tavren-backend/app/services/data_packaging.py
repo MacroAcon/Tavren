@@ -312,7 +312,15 @@ class DataPackagingService:
                 if "device_id" in anonymized:
                     anonymized["device_id"] = hashlib.sha256(str(anonymized["device_id"]).encode()).hexdigest()[:16]
                 if "ip_address" in anonymized:
-                    anonymized["ip_address"] = "xxx.xxx.xxx.xxx"
+                    # Properly anonymize IP addresses by preserving network prefix
+                    try:
+                        parts = anonymized["ip_address"].split('.')
+                        if len(parts) == 4:  # IPv4
+                            anonymized["ip_address"] = f"{parts[0]}.{parts[1]}.0.0"
+                        else:  # Handle IPv6 or invalid IPs
+                            anonymized["ip_address"] = "0.0.0.0"
+                    except:
+                        anonymized["ip_address"] = "0.0.0.0"
                 if "email" in anonymized:
                     parts = anonymized["email"].split('@')
                     if len(parts) == 2:
