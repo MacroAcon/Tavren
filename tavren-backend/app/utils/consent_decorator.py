@@ -24,7 +24,7 @@ def requires_consent(
     @requires_consent(data_scope="location", purpose="insight_generation")
     async def protected_endpoint(
         request: SomeRequest,
-        db: AsyncSession = Depends(get_db),
+        db = Depends(get_db),
         consent_validator: ConsentValidator = Depends(get_consent_validator)
     ):
         # This endpoint will only run if consent is valid

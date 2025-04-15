@@ -8,10 +8,10 @@ from app.config import settings
 log = logging.getLogger("app")
 
 # Create router
-router = APIRouter(tags=["static"])
+static_router = APIRouter(tags=["static"])
 
 # Endpoint to serve the dashboard HTML
-@router.get("/dashboard", response_class=FileResponse)
+@static_router.get("/dashboard", response_class=FileResponse)
 async def get_dashboard():
     """Serve the main dashboard HTML page."""
     dashboard_path = settings.STATIC_DIR / "index.html"
@@ -24,7 +24,7 @@ async def get_dashboard():
     return FileResponse(dashboard_path)
 
 # Endpoint to serve the buyer dashboard HTML
-@router.get("/buyer-dashboard", response_class=FileResponse)
+@static_router.get("/buyer-dashboard", response_class=FileResponse)
 async def get_buyer_dashboard():
     """Serve the buyer dashboard HTML page."""
     dashboard_path = settings.STATIC_DIR / "buyer.html"
@@ -37,7 +37,7 @@ async def get_buyer_dashboard():
     return FileResponse(dashboard_path)
 
 # Endpoint to serve the offer feed HTML
-@router.get("/offer-feed", response_class=FileResponse)
+@static_router.get("/offer-feed", response_class=FileResponse)
 async def get_offer_feed_page():
     """Serve the offer feed HTML page."""
     dashboard_path = settings.STATIC_DIR / "offer.html"
@@ -50,7 +50,7 @@ async def get_offer_feed_page():
     return FileResponse(dashboard_path)
 
 # Endpoint to serve the suggestion success dashboard HTML
-@router.get("/suggestion-dashboard", response_class=FileResponse)
+@static_router.get("/suggestion-dashboard", response_class=FileResponse)
 async def get_suggestion_dashboard_page():
     """Serve the suggestion dashboard HTML page."""
     dashboard_path = settings.STATIC_DIR / "suggestion.html"
@@ -63,7 +63,7 @@ async def get_suggestion_dashboard_page():
     return FileResponse(dashboard_path)
 
 # Endpoint to serve the wallet page HTML
-@router.get("/wallet", response_class=FileResponse)
+@static_router.get("/wallet", response_class=FileResponse)
 async def get_wallet_page():
     """Serve the wallet HTML page."""
     dashboard_path = settings.STATIC_DIR / "wallet.html"

@@ -851,7 +851,7 @@ class EvaluationService:
 
 # Dependency for FastAPI
 async def get_evaluation_service(
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service)
 ) -> EvaluationService:
     """

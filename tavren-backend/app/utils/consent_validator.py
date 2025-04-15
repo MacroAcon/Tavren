@@ -4,9 +4,12 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 import json
+from fastapi import Depends
 
 from app.models import ConsentEvent
-from app.services.consent_ledger import ConsentLedgerService, get_consent_ledger_service
+from app.database import get_db
+# Remove import at module level to avoid circular imports
+# from app.services.consent_ledger import ConsentLedgerService, get_consent_ledger_service
 
 # Get logger
 log = logging.getLogger("app")
@@ -47,6 +50,9 @@ class ConsentValidator:
                 - details: Dict with reason and relevant restriction information
         """
         log.info(f"Checking DSR restrictions for user {user_id}")
+        
+        # Import inside method to avoid circular imports
+        from app.services.consent_ledger import ConsentLedgerService
         
         # Get the consent ledger service
         consent_ledger_service = ConsentLedgerService(self.db)
@@ -123,6 +129,9 @@ class ConsentValidator:
                 "dsr_details": restriction_details,
                 "user_id": user_id
             }
+        
+        # Import inside method to avoid circular imports
+        from app.services.consent_ledger import ConsentLedgerService
         
         # Get the consent ledger service
         consent_ledger_service = ConsentLedgerService(self.db)
@@ -300,6 +309,6 @@ class ConsentValidator:
         
         return False
 
-async def get_consent_validator(db: AsyncSession) -> ConsentValidator:
+async def get_consent_validator(db = Depends(get_db)) -> ConsentValidator:
     """Dependency injection for the consent validator."""
     return ConsentValidator(db) 

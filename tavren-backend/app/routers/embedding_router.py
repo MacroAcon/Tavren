@@ -5,7 +5,7 @@ Provides endpoints for creating embeddings, indexing data packages, and semantic
 
 import logging
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, Path, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Body, Path, Query, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -43,7 +43,7 @@ embedding_router = APIRouter(
 async def create_embedding(
     request: EmbeddingRequest,
     req: Request,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(embedding_creation_rate_limit)
@@ -84,7 +84,7 @@ async def create_embedding(
 async def index_data_package(
     request: IndexPackageRequest,
     req: Request,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(embedding_creation_rate_limit)
@@ -118,7 +118,7 @@ async def index_data_package(
 async def vector_search(
     request: VectorSearchRequest,
     req: Request,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(search_rate_limit)
@@ -159,7 +159,7 @@ async def vector_search(
 async def retrieve_context(
     request: RAGRequest,
     req: Request,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(search_rate_limit)
@@ -194,7 +194,7 @@ async def retrieve_context(
 async def get_embedding(
     embedding_id: int = Path(..., description="The ID of the embedding to retrieve"),
     req: Request = None,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(default_rate_limit)
@@ -230,7 +230,7 @@ async def get_package_embedding(
     package_id: str = Path(..., description="The ID of the package"),
     embedding_type: str = Path(..., description="The type of embedding to retrieve"),
     req: Request = None,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(default_rate_limit)
@@ -271,7 +271,7 @@ async def get_package_embedding(
 async def hybrid_search(
     request: HybridSearchRequest,
     req: Request,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(complex_search_rate_limit)
@@ -317,7 +317,7 @@ async def hybrid_search(
 async def cross_package_context(
     request: CrossPackageContextRequest,
     req: Request,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(complex_search_rate_limit)
@@ -356,7 +356,7 @@ async def cross_package_context(
 async def query_expansion_search(
     request: QueryExpansionRequest,
     req: Request,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(complex_search_rate_limit)
@@ -393,7 +393,7 @@ async def query_expansion_search(
 async def faceted_search(
     request: FacetedSearchRequest,
     req: Request,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user),
     rate_limit: None = Depends(complex_search_rate_limit)

@@ -6,7 +6,7 @@ Uses Redis to track and limit request rates.
 import time
 import logging
 from typing import Optional, Tuple, Dict, Any
-from fastapi import Request, HTTPException, Depends
+from fastapi import Request, HTTPException, Depends, Depends
 import redis.asyncio as redis
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,17 +16,32 @@ from app.config import settings
 from app.auth import get_current_active_user
 
 # Set up logging
-log = logging.getLogger("app")
+log = logging.getLogger("tavren.rate_limit")
 
 # Configure Redis connection for rate limiting
+redis_client = None
 try:
-    # Use the same Redis instance as the cache if available
+    # Get Redis URL from settings with a safe default for development
     redis_url = getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
-    redis_client = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+    
+    # Validate Redis URL scheme
+    if not any(redis_url.startswith(scheme) for scheme in ["redis://", "rediss://", "unix://"]):
+        log.warning("Redis disabled - invalid REDIS_URL scheme. Must be one of: redis://, rediss://, unix://")
+    else:
+        redis_client = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+        log.info("Redis rate limiter initialized successfully")
 except Exception as e:
-    log.error(f"Error initializing Redis for rate limiting: {e}")
+    log.warning(f"Redis disabled - failed to initialize: {str(e)}")
     redis_client = None
 
+def get_redis_status() -> str:
+    """
+    Get the current status of Redis connection.
+    
+    Returns:
+        str: "connected" if Redis is available, "disabled (fallback)" otherwise
+    """
+    return "connected" if redis_client else "disabled (fallback)"
 
 class RateLimiter:
     """
@@ -354,7 +369,7 @@ def get_rate_limiter() -> RateLimiter:
 # Create a singleton instance
 _rate_limiter = None
 
-async def get_rate_limiter(db: AsyncSession = Depends(get_db)) -> RateLimiter:
+async def get_rate_limiter(db = Depends(get_db)) -> RateLimiter:
     """Dependency injection for the rate limiter."""
     global _rate_limiter
     if _rate_limiter is None:

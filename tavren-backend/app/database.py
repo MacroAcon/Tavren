@@ -1,5 +1,8 @@
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
+from typing import AsyncGenerator, Callable
+
 # Import the settings instance
 from .config import settings
 from sqlalchemy import event
@@ -32,13 +35,22 @@ AsyncSessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-async def get_db() -> AsyncSession:
+# Use this directly - not inside a Pydantic model
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Asynchronous database dependency that creates a new SQLAlchemy AsyncSession
-    for each request and ensures it is closed when the request is complete.
+    Asynchronous database session generator.
+    Provides a database session for each request and ensures it's closed afterward.
     """
     async with AsyncSessionLocal() as session:
         try:
             yield session
         finally:
-            await session.close() # Ensure session is closed asynchronously
+            await session.close()
+
+# Use this function to get the dependency
+def get_db() -> Callable:
+    """
+    Returns a dependency that provides a database session.
+    Use this in FastAPI endpoints instead of referencing get_db_session directly.
+    """
+    return Depends(get_db_session)

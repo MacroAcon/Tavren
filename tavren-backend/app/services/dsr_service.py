@@ -6,10 +6,12 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple, BinaryIO
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends
 
 from app.models import ConsentEvent, Reward, PayoutRequest, User
 from app.services.consent_ledger import ConsentLedgerService, get_consent_ledger_service
 from app.utils.consent_validator import ACTION_OPT_OUT
+from app.database import get_db
 
 # Get logger
 log = logging.getLogger("app")
@@ -360,6 +362,6 @@ For questions regarding this data, please contact privacy@tavren.com
         # Record the event in the consent ledger
         await consent_ledger_service.record_event(audit_event)
 
-async def get_dsr_service(db: AsyncSession) -> DSRService:
+async def get_dsr_service(db = Depends(get_db)) -> DSRService:
     """Dependency injection for the DSR service."""
     return DSRService(db) 

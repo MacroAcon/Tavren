@@ -1,33 +1,29 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 import logging
 import re
 from collections import defaultdict
 
 from app.models import ConsentEvent
-from app.schemas import BuyerTrustStats, BuyerAccessLevel, FilteredOffer
 from app.services.trust_service import TrustService
 
 log = logging.getLogger("app")
 
 # Mock offers data - Consider moving to config or database
-MOCK_OFFERS = [
-    FilteredOffer(title="Basic Data Share", description="Share anonymous usage stats.", sensitivity_level="low"),
-    FilteredOffer(title="Contact Info Share", description="Share email for newsletters.", sensitivity_level="medium"),
-    FilteredOffer(title="Location Tracking", description="Enable background location for personalized ads.", sensitivity_level="high"),
-    FilteredOffer(title="Purchase History Analysis", description="Allow analysis of your purchase history.", sensitivity_level="medium"),
-    FilteredOffer(title="Public Profile Data", description="Share your public profile information.", sensitivity_level="low"),
-    FilteredOffer(title="Biometric Data Access", description="Allow access to fingerprint/face ID.", sensitivity_level="high"),
-]
+MOCK_OFFERS = []  # Will initialize inside the get_filtered_offers method
 
 class BuyerService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.trust_service = TrustService(db)
 
-    async def get_buyer_trust_stats(self) -> list[BuyerTrustStats]:
+    async def get_buyer_trust_stats(self) -> list:
         """
         Calculates trust statistics for all buyers based on declined events.
         """
+        # Import schema inside function to avoid circular imports
+        from app.schemas import BuyerTrustStats
+        
         log.debug("[BuyerService] Calculating buyer trust statistics")
         try:
             query = select(ConsentEvent).filter(ConsentEvent.action == "declined")
@@ -65,10 +61,13 @@ class BuyerService:
             log.error(f"[BuyerService] Error calculating buyer trust stats: {str(e)}", exc_info=True)
             return []
 
-    async def get_buyer_access_level(self, buyer_id: str) -> BuyerAccessLevel:
+    async def get_buyer_access_level(self, buyer_id: str):
         """
         Determine the access level for a buyer based on their trust score.
         """
+        # Import schema inside function to avoid circular imports
+        from app.schemas import BuyerAccessLevel
+        
         log.debug(f"[BuyerService] Determining access level for buyer {buyer_id}")
         try:
             trust_score = await self.trust_service.calculate_buyer_trust_score(buyer_id)
@@ -84,10 +83,25 @@ class BuyerService:
             log.error(f"[BuyerService] Error determining access level for {buyer_id}: {str(e)}", exc_info=True)
             return BuyerAccessLevel(access="restricted", trust_score=0.0)
 
-    async def get_filtered_offers(self, buyer_id: str) -> list[FilteredOffer]:
+    async def get_filtered_offers(self, buyer_id: str) -> list:
         """
         Filter available offers based on buyer's trust score (access level).
         """
+        # Import schema inside function to avoid circular imports
+        from app.schemas import FilteredOffer
+        
+        # Initialize mock offers inside the function
+        global MOCK_OFFERS
+        if not MOCK_OFFERS:
+            MOCK_OFFERS = [
+                FilteredOffer(title="Basic Data Share", description="Share anonymous usage stats.", sensitivity_level="low"),
+                FilteredOffer(title="Contact Info Share", description="Share email for newsletters.", sensitivity_level="medium"),
+                FilteredOffer(title="Location Tracking", description="Enable background location for personalized ads.", sensitivity_level="high"),
+                FilteredOffer(title="Purchase History Analysis", description="Allow analysis of your purchase history.", sensitivity_level="medium"),
+                FilteredOffer(title="Public Profile Data", description="Share your public profile information.", sensitivity_level="low"),
+                FilteredOffer(title="Biometric Data Access", description="Allow access to fingerprint/face ID.", sensitivity_level="high"),
+            ]
+            
         log.debug(f"[BuyerService] Filtering offers for buyer {buyer_id}")
         try:
             access_level = await self.get_buyer_access_level(buyer_id)

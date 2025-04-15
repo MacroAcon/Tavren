@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi import APIRouter, HTTPException, Depends, status, Request, Depends
 from fastapi.responses import JSONResponse
 import logging
 from typing import Dict, Any, List, Optional
@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.schemas.insight import InsightRequest, InsightResponse, ApiInfoResponse
-from app.utils.insight_processor import process_insight, QueryType, PrivacyMethod, check_dsr_restrictions
 from app.utils.consent_validator import ConsentValidator, get_consent_validator
 from app.utils.rate_limit import RateLimiter, get_rate_limiter
 
@@ -28,11 +27,11 @@ insight_router = APIRouter(
 INSIGHT_RATE_LIMIT = 60 * 5  # 5 minutes in seconds
 
 # Example data for fallback
-def get_example_data(query_type: QueryType) -> List[Dict[str, Any]]:
+def get_example_data(query_type: str) -> List[Dict[str, Any]]:
     """Get example data for the specified query type."""
     log.info(f"Using example data for {query_type}")
     
-    if query_type == QueryType.AVERAGE_STORE_VISITS:
+    if query_type == "average_store_visits":
         # Create example data as a list of dictionaries
         return [
             {'user_id': 'u1', 'store_category': 'Grocery', 'visit_count': 5},
@@ -49,10 +48,10 @@ def get_example_data(query_type: QueryType) -> List[Dict[str, Any]]:
     # Default fallback - empty list (should not reach here due to validation)
     return []
 
-@insight_router.post("/insight", response_model=InsightResponse, status_code=status.HTTP_200_OK)
+@insight_router.post("/insight", response_model=None, status_code=status.HTTP_200_OK)
 async def process_insight_request(
     request: InsightRequest,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     consent_validator: ConsentValidator = Depends(get_consent_validator),
     rate_limiter: RateLimiter = Depends(get_rate_limiter)
 ) -> InsightResponse:
@@ -74,6 +73,9 @@ async def process_insight_request(
     Raises:
         HTTPException: If processing fails or consent is not granted
     """
+    # Import inside function to avoid circular imports
+    from app.utils.insight_processor import process_insight, check_dsr_restrictions
+    
     # Log the request (excluding raw data for brevity)
     log.info(f"Processing insight request: query_type={request.query_type}, privacy_method={request.privacy_method}")
     
@@ -216,7 +218,7 @@ async def process_insight_request(
         )
 
 @insight_router.get("/info", response_model=ApiInfoResponse, status_code=status.HTTP_200_OK)
-async def get_api_info() -> ApiInfoResponse:
+async def get_api_info():
     """
     Get information about the insight API, including supported query types,
     privacy methods, and example payload structure.
@@ -224,6 +226,9 @@ async def get_api_info() -> ApiInfoResponse:
     Returns:
         API information including supported features and example payload
     """
+    # Import inside function to avoid circular imports
+    from app.utils.insight_processor import QueryType, PrivacyMethod
+    
     # List of supported query types
     supported_query_types = [qt.value for qt in QueryType]
     

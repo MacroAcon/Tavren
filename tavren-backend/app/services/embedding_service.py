@@ -1765,7 +1765,7 @@ class EmbeddingService:
 
 # Dependency for FastAPI
 async def get_embedding_service(
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     llm_service: LLMService = Depends(get_llm_service),
     data_packaging_service: DataPackagingService = Depends(get_data_packaging_service),
     data_service: DataService = Depends(get_data_service)

@@ -12,10 +12,12 @@ from sqlalchemy import select
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from fastapi import Depends
 
 from app.models import User, ConsentEvent
 from app.utils.crypto import encrypt_data, decrypt_data
 from app.config import get_settings
+from app.database import get_db
 
 # Get logger
 log = logging.getLogger("app")
@@ -888,6 +890,6 @@ class DataPackagingService:
             
         return result
 
-async def get_data_packaging_service(db: AsyncSession) -> DataPackagingService:
+async def get_data_packaging_service(db = Depends(get_db)) -> DataPackagingService:
     """Dependency for getting the data packaging service."""
     return DataPackagingService(db) 

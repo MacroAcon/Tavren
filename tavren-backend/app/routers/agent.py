@@ -1,14 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
-from sqlalchemy.ext.asyncio import AsyncSession
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException, Body, Depends
+from typing import Dict, Any, TYPE_CHECKING
 import logging
 import uuid
-from typing import Dict, Any
 from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.schemas import UserDisplay
 from app.auth import get_current_active_user
 from app.services.data_packaging import DataPackagingService, get_data_packaging_service
+
+# Use TYPE_CHECKING to avoid circular imports
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # Get logger
 log = logging.getLogger("app")
@@ -38,7 +43,7 @@ USER_PREFERENCES = {
 }
 
 # Function to check if request aligns with user preferences
-async def check_consent_alignment(request: Dict[str, Any], user_id: str, db: AsyncSession) -> tuple[bool, str]:
+async def check_consent_alignment(request: Dict[str, Any], user_id: str, db) -> tuple[bool, str]:
     """Check if the agent request aligns with user's consent preferences."""
     try:
         # In production, fetch user preferences from database
@@ -66,10 +71,10 @@ async def check_consent_alignment(request: Dict[str, Any], user_id: str, db: Asy
         log.error(f"Error checking consent alignment: {e}", exc_info=True)
         return False, "Error validating consent alignment"
 
-@router.post("/message", response_model=Dict[str, Any])
+@router.post("/message", response_model=None)
 async def process_agent_message(
     message: Dict[str, Any] = Body(...),
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     current_user: UserDisplay = Depends(get_current_active_user),
     data_packaging_service: DataPackagingService = Depends(get_data_packaging_service)
 ):
@@ -223,10 +228,10 @@ async def process_agent_message(
         log.error(f"Error processing agent message: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/logs/{user_id}")
+@router.get("/logs/{user_id}", response_model=None)
 async def get_agent_logs(
     user_id: str,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     current_user: UserDisplay = Depends(get_current_active_user)
 ):
     """
@@ -245,10 +250,10 @@ async def get_agent_logs(
         "logs": []
     }
 
-@router.get("/data/payload/{consent_id}")
+@router.get("/data/payload/{consent_id}", response_model=None)
 async def get_data_payload(
     consent_id: str,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     data_packaging_service: DataPackagingService = Depends(get_data_packaging_service)
 ):
     """
@@ -291,10 +296,10 @@ async def get_data_payload(
         log.error(f"Error generating data payload: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating data payload: {str(e)}")
 
-@router.get("/exchanges/{user_id}")
+@router.get("/exchanges/{user_id}", response_model=None)
 async def get_agent_exchanges(
     user_id: str,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     current_user: UserDisplay = Depends(get_current_active_user)
 ):
     """

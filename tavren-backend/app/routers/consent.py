@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
 import logging
@@ -39,7 +39,7 @@ router = APIRouter(
 )
 
 @router.post("/decline")
-async def log_consent_event(event: ConsentEventCreate, db: AsyncSession = Depends(get_db)):
+async def log_consent_event(event: ConsentEventCreate, db = Depends(get_db)):
     """
     Log a consent event in the database.
     
@@ -60,7 +60,7 @@ async def log_consent_event(event: ConsentEventCreate, db: AsyncSession = Depend
         handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error logging consent event.")
 
 @router.get("/export/agent-training-log", response_model=List[AgentTrainingExample])
-async def export_agent_training_log(db: AsyncSession = Depends(get_db)):
+async def export_agent_training_log(db = Depends(get_db)):
     """
     Export training data for consent agent based on declined consent events.
     
@@ -105,7 +105,7 @@ dashboard_router = APIRouter(
 )
 
 @dashboard_router.get("/reason-stats", response_model=list[ReasonStats])
-async def get_reason_stats(db: AsyncSession = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
+async def get_reason_stats(db = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
     """
     Get statistics about reasons for declining consent.
     
@@ -134,7 +134,7 @@ async def get_reason_stats(db: AsyncSession = Depends(get_db), current_user: Use
         handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error fetching reason stats.")
 
 @dashboard_router.get("/suggestion-success", response_model=SuggestionSuccessStats)
-async def get_suggestion_success_stats(db: AsyncSession = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
+async def get_suggestion_success_stats(db = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
     """
     Get statistics about the success rate of consent alternatives.
     

@@ -33,7 +33,7 @@ async def export_user_consent(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: User = Depends(get_current_user),
     export_service: ConsentExportService = Depends(get_consent_export),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Generate an export of consent and processing history for a user.
@@ -144,7 +144,7 @@ async def admin_export_user_consent(
     format: str = Query("json", description="Export format (json or file)"),
     current_admin: User = Depends(get_current_admin_user),
     export_service: ConsentExportService = Depends(get_consent_export),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Admin endpoint to generate an export of consent and processing history for any user.

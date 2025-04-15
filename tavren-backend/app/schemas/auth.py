@@ -1,7 +1,8 @@
 """
 Pydantic schemas for authentication operations.
 """
-from pydantic import BaseModel, Field, EmailStr
+from __future__ import annotations
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import Optional
 
 class Token(BaseModel):
@@ -28,13 +29,11 @@ class UserInDB(UserBase):
     hashed_password: str
     is_active: bool
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UserDisplay(UserBase):
     """Schema for displaying user info safely."""
     id: int
     is_active: bool
 
-    class Config:
-        orm_mode = True 
+    model_config = ConfigDict(from_attributes=True) 

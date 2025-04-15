@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body, status
+from fastapi import APIRouter, Depends, HTTPException, Body, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from typing import Dict, Any, Optional
@@ -72,7 +72,7 @@ class CompensationBreakdown(BaseModel):
 @router.get("/profile", response_model=UserProfileResponse)
 async def get_user_profile(
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Get the current user's profile information
@@ -103,7 +103,7 @@ async def get_user_profile(
 async def update_user_profile(
     profile_update: UserProfileUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Update the current user's profile information
@@ -141,7 +141,7 @@ async def update_user_profile(
 @router.get("/preferences", response_model=UserPreferences)
 async def get_user_preferences(
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Get the current user's privacy and consent preferences
@@ -165,7 +165,7 @@ async def get_user_preferences(
 async def update_user_preferences(
     preferences: UserPreferences,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Update the current user's privacy and consent preferences
@@ -181,7 +181,7 @@ async def update_user_preferences(
 @router.get("/notifications", response_model=NotificationPreferences)
 async def get_notification_settings(
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Get the current user's notification preferences
@@ -204,7 +204,7 @@ async def get_notification_settings(
 async def update_notification_settings(
     notifications: NotificationPreferences,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Update the current user's notification preferences
@@ -220,7 +220,7 @@ async def update_notification_settings(
 @router.get("/trust-score", response_model=TrustScoreResponse)
 async def get_trust_score(
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Get the current user's trust score and factors contributing to it
@@ -250,7 +250,7 @@ async def get_trust_score(
 @router.get("/compensation-breakdown", response_model=CompensationBreakdown)
 async def get_compensation_breakdown(
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Get the current user's compensation model details

@@ -10,9 +10,11 @@ The processor acts as a bridge between raw data and privacy-preserving insights,
 choosing the appropriate privacy-enhancing technology based on configuration.
 """
 
+from __future__ import annotations
+
 import logging
 import numpy as np
-from typing import Dict, List, Any, Union, Optional, Tuple
+from typing import Dict, List, Any, Union, Optional, Tuple, TYPE_CHECKING
 import pandas as pd
 import time
 import importlib.util
@@ -24,10 +26,15 @@ from datetime import datetime
 import random
 import math
 
+# Use TYPE_CHECKING to avoid circular imports
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Define enums for supported query types and privacy methods
+# These are duplicated from app.schemas.insight to avoid circular imports
 class QueryType(str, Enum):
     AVERAGE_STORE_VISITS = "average_store_visits"
 
@@ -35,11 +42,10 @@ class PrivacyMethod(str, Enum):
     DP = "dp"
     SMPC = "smpc"
 
-# Import consent validation utilities
-from app.utils.consent_validator import validate_user_consent
-from app.services.consent_ledger import ConsentLedgerService
+# Move imports inside functions to avoid circular imports
+# from app.utils.consent_validator import validate_user_consent
+# from app.services.consent_ledger import ConsentLedgerService
 from app.utils.rate_limit import RateLimiter
-from sqlalchemy.ext.asyncio import AsyncSession
 
 def validate_input(data: Any, query_type: str, pet_method: str, epsilon: Optional[float] = None) -> bool:
     """
@@ -204,378 +210,6 @@ def apply_smpc_to_average(data: List[Dict]) -> Dict[str, float]:
     return result
 
 async def process_insight(
-    data: Any, 
-    query_type: str, 
-    pet_method: str, 
-    epsilon: Optional[float] = None,
-    user_id: Optional[str] = None,
-    data_scope: Optional[str] = None,
-    purpose: Optional[str] = "insight_generation",
-    consent_validator = None
-) -> Dict[str, Any]:
-    """
-    Process an insight request with the specified privacy-enhancing technology
-    
-    Args:
-        data: Input data (DataFrame, dictionary, or list)
-        query_type: Type of query to process
-        pet_method: Privacy-enhancing technology method to use
-        epsilon: Privacy parameter for differential privacy (if applicable)
-        user_id: Optional ID of the user whose data is being processed
-        data_scope: Optional scope of the data being processed (e.g., "location")
-        purpose: Optional purpose of processing (default: "insight_generation")
-        consent_validator: Optional consent validator instance for checking consent
-        
-    Returns:
-        Dictionary containing processed result and metadata
-        
-    Raises:
-        ValueError: If input validation fails
-        PermissionError: If consent validation fails
-    """
-    start_time = time.time()
-    process_id = str(int(start_time * 1000))  # Generate a unique process ID
-    
-    logger.info(f"Processing insight {process_id} using {pet_method} for query type {query_type}")
-    
-    # Check consent if validator and user_id are provided
-    if consent_validator and user_id and data_scope:
-        logger.info(f"Validating consent for user {user_id}, scope '{data_scope}', purpose '{purpose}'")
-        try:
-            is_allowed, details = await consent_validator.is_processing_allowed(
-                user_id=user_id,
-                data_scope=data_scope,
-                purpose=purpose
-            )
-            
-            if not is_allowed:
-                logger.warning(f"Consent validation failed for user {user_id}: {details['reason']}")
-                return {
-                    "result": None,
-                    "metadata": {
-                        "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-                        "process_id": process_id,
-                        "error": "Consent validation failed",
-                        "error_details": details,
-                        "status": "rejected"
-                    }
-                }
-            
-            logger.info(f"Consent validated successfully for user {user_id}, scope '{data_scope}', purpose '{purpose}'")
-            
-        except Exception as e:
-            logger.error(f"Error during consent validation: {str(e)}", exc_info=True)
-            return {
-                "result": None,
-                "metadata": {
-                    "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-                    "process_id": process_id,
-                    "error": "Consent validation error",
-                    "error_details": {"message": str(e)},
-                    "status": "error"
-                }
-            }
-    
-    # Check if user_id, data_scope, and purpose are provided but no validator
-    elif user_id and data_scope and not consent_validator:
-        logger.warning("User data being processed without consent validation")
-    
-    # Validate input
-    try:
-        validate_input(data, query_type, pet_method, epsilon)
-    except ValueError as e:
-        logger.error(f"Input validation error: {str(e)}")
-        return {
-            "result": None,
-            "metadata": {
-                "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-                "process_id": process_id,
-                "error": "Input validation failed",
-                "error_details": {"message": str(e)},
-                "status": "error"
-            }
-        }
-    
-    # Process based on query type and PET method
-    try:
-        result = None
-        
-        if query_type == QueryType.AVERAGE_STORE_VISITS:
-            if pet_method == PrivacyMethod.DP:
-                result = apply_dp_to_average(data, epsilon)
-            elif pet_method == PrivacyMethod.SMPC:
-                result = apply_smpc_to_average(data)
-        
-        if result is None:
-            raise NotImplementedError(f"Query type {query_type} with {pet_method} not implemented yet")
-        
-        # Calculate processing time
-        processing_time = time.time() - start_time
-        
-        # Prepare metadata
-        metadata = {
-            "processing_time_ms": round(processing_time * 1000, 2),
-            "process_id": process_id,
-            "query_type": query_type,
-            "pet_method": pet_method,
-            "status": "success"
-        }
-        
-        # Include consent information if available
-        if consent_validator and user_id and data_scope:
-            metadata["consent_validated"] = True
-            metadata["user_id"] = user_id
-            metadata["data_scope"] = data_scope
-            metadata["purpose"] = purpose
-        
-        # Include DP specific metadata
-        if pet_method == PrivacyMethod.DP and epsilon:
-            metadata["epsilon"] = epsilon
-            metadata["estimated_error"] = 1.0 / epsilon * 100  # Rough error estimate in percentage
-        
-        return {
-            "result": result,
-            "metadata": metadata
-        }
-        
-    except Exception as e:
-        logger.error(f"Error processing insight: {str(e)}", exc_info=True)
-        return {
-            "result": None,
-            "metadata": {
-                "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-                "process_id": process_id,
-                "error": "Processing error",
-                "error_details": {"message": str(e)},
-                "status": "error"
-            }
-        }
-
-# Input validation functions
-def validate_query_input(data: List[Dict[str, Any]], query_type: QueryType) -> Tuple[bool, str]:
-    """
-    Validate the input data based on the query type.
-    
-    Args:
-        data: Input data as a list of dictionaries
-        query_type: Type of query to run
-        
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    if not data:
-        return False, "Input data is empty"
-    
-    if not isinstance(data, list):
-        return False, "Input data must be a list"
-    
-    if query_type == QueryType.AVERAGE_STORE_VISITS:
-        # Count just needs a list of records
-        return True, ""
-        
-    elif query_type == QueryType.AVERAGE_STORE_VISITS:
-        # Check if data contains numeric values to average
-        numeric_keys = set()
-        for item in data:
-            for key, value in item.items():
-                if isinstance(value, (int, float)) and not isinstance(value, bool):
-                    numeric_keys.add(key)
-        
-        if not numeric_keys:
-            return False, "No numeric fields found for averaging"
-        return True, ""
-        
-    elif query_type == QueryType.AVERAGE_STORE_VISITS:
-        # Check if data contains numeric values to sum
-        numeric_keys = set()
-        for item in data:
-            for key, value in item.items():
-                if isinstance(value, (int, float)) and not isinstance(value, bool):
-                    numeric_keys.add(key)
-        
-        if not numeric_keys:
-            return False, "No numeric fields found for summing"
-        return True, ""
-        
-    elif query_type == QueryType.AVERAGE_STORE_VISITS:
-        # For distribution, all items should have at least one common field
-        if not data:
-            return False, "Input data is empty"
-            
-        keys_sets = [set(item.keys()) for item in data]
-        common_keys = set.intersection(*keys_sets) if keys_sets else set()
-        
-        if not common_keys:
-            return False, "No common fields across data points for distribution analysis"
-        return True, ""
-        
-    elif query_type == QueryType.AVERAGE_STORE_VISITS:
-        # For correlation, need at least two numeric fields
-        numeric_keys = set()
-        for item in data:
-            for key, value in item.items():
-                if isinstance(value, (int, float)) and not isinstance(value, bool):
-                    numeric_keys.add(key)
-        
-        if len(numeric_keys) < 2:
-            return False, "Need at least two numeric fields for correlation analysis"
-        return True, ""
-        
-    elif query_type == QueryType.AVERAGE_STORE_VISITS:
-        # For trend analysis, need time field and at least one numeric field
-        time_fields = set()
-        numeric_fields = set()
-        
-        for item in data:
-            for key, value in item.items():
-                if key.lower() in ["time", "date", "timestamp"]:
-                    time_fields.add(key)
-                elif isinstance(value, (int, float)) and not isinstance(value, bool):
-                    numeric_fields.add(key)
-        
-        if not time_fields:
-            return False, "No time/date fields found for trend analysis"
-        if not numeric_fields:
-            return False, "No numeric fields found for trend analysis"
-        return True, ""
-        
-    return True, ""  # Default case or CUSTOM type
-
-def validate_privacy_params(privacy_method: PrivacyMethod, privacy_params: Optional[Dict[str, Any]]) -> Tuple[bool, str]:
-    """
-    Validate privacy method parameters.
-    
-    Args:
-        privacy_method: The privacy method to use
-        privacy_params: Parameters for the privacy method
-        
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    if privacy_method == PrivacyMethod.DP:
-        if "epsilon" not in privacy_params:
-            return False, "Epsilon parameter is required for differential privacy"
-        
-        epsilon = privacy_params.get("epsilon")
-        if not isinstance(epsilon, (int, float)) or epsilon <= 0:
-            return False, "Epsilon must be a positive number"
-            
-        delta = privacy_params.get("delta", 0)
-        if not isinstance(delta, (int, float)) or delta < 0 or delta >= 1:
-            return False, "Delta must be between 0 and 1"
-            
-        return True, ""
-        
-    elif privacy_method == PrivacyMethod.SMPC:
-        if "min_parties" not in privacy_params:
-            return False, "min_parties parameter is required for SMPC"
-            
-        min_parties = privacy_params.get("min_parties")
-        if not isinstance(min_parties, int) or min_parties < 2:
-            return False, "min_parties must be an integer greater than 1"
-            
-        return True, ""
-    
-    return True, ""
-
-# Check user DSR restrictions
-async def check_dsr_restrictions(db: AsyncSession, user_ids: List[str]) -> Tuple[bool, List[str], str]:
-    """
-    Check if any users in the dataset have processing restrictions from DSR requests.
-    
-    Args:
-        db: Database session
-        user_ids: List of user IDs to check for restrictions
-        
-    Returns:
-        Tuple of (can_process, restricted_users, error_message)
-    """
-    if not user_ids:
-        return True, [], ""
-    
-    # Setup consent ledger service
-    consent_service = ConsentLedgerService(db)
-    
-    restricted_users = []
-    for user_id in user_ids:
-        # Get user consent history
-        user_history = await consent_service.get_user_history(user_id)
-        
-        # Check for DSR restriction events
-        for event in user_history:
-            # Look for system restriction events in metadata
-            metadata = event.consent_metadata or {}
-            if isinstance(metadata, str):
-                try:
-                    metadata = json.loads(metadata)
-                except:
-                    metadata = {}
-            
-            # Check for restriction requests in the event metadata
-            if metadata.get("dsr_type") == "processing_restriction" and event.action == "dsr_request":
-                restricted_users.append(user_id)
-                break
-                
-            # Also check for global opt-outs with system_restriction offer_id
-            if event.offer_id == "system_restriction" and event.action == "opt_out":
-                restricted_users.append(user_id)
-                break
-    
-    if restricted_users:
-        return False, restricted_users, "Some users have requested processing restrictions"
-    
-    return True, [], ""
-
-# Apply privacy methods to results
-def apply_differential_privacy(
-    data: Dict[str, Any],
-    epsilon: float,
-    delta: float = 1e-5
-) -> Dict[str, Any]:
-    """
-    Apply differential privacy to query results.
-    
-    Args:
-        data: Query results to privatize
-        epsilon: Privacy parameter (smaller = more privacy)
-        delta: Probability of privacy failure
-        
-    Returns:
-        Privatized results
-    """
-    # This is a simplified implementation for demonstration
-    # A production system would use a proper DP library like IBM's diffprivlib or Google's dp-accounting
-    
-    # Calculate sensitivity based on the query type and data
-    sensitivity = 1.0  # Simplified assumption
-    
-    # Add noise to the results
-    noise_scale = sensitivity / epsilon
-    
-    # Apply noise to numeric values
-    private_data = data.copy()
-    for key, value in data.items():
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            # Add Laplace noise
-            noise = np.random.laplace(0, noise_scale)
-            
-            # For counts, round to nearest integer
-            if key == "count" or key.endswith("_count"):
-                private_data[key] = max(0, int(round(value + noise)))
-            else:
-                private_data[key] = value + noise
-                
-    # Add privacy metadata
-    private_data["privacy_metadata"] = {
-        "method": "differential_privacy",
-        "epsilon": epsilon,
-        "delta": delta,
-        "estimated_error_pct": round(noise_scale / max(1, abs(data.get("result", 1))) * 100, 2)
-    }
-    
-    return private_data
-
-async def process_insight(
     data: List[Dict[str, Any]],
     query_type: QueryType,
     privacy_method: PrivacyMethod,
@@ -583,23 +217,29 @@ async def process_insight(
     custom_query: Optional[Dict[str, Any]] = None,
     validate_consent: bool = True,
     user_id_field: str = "user_id",
-    db: Optional[AsyncSession] = None
+    db: Optional["AsyncSession"] = None
 ) -> Dict[str, Any]:
     """
-    Process an insight request with privacy protection.
+    Process an insight request with the specified privacy-enhancing technology.
+    
+    This is the main entry point for insight processing. It:
+    1. Validates the input data and parameters
+    2. Checks user consent and DSR restrictions if requested
+    3. Applies the appropriate privacy-enhancing technology
+    4. Returns the processed result with metadata
     
     Args:
-        data: Input data as a list of dictionaries
-        query_type: Type of query to run
-        privacy_method: Privacy method to apply
-        privacy_params: Parameters for the privacy method
-        custom_query: Custom query parameters (for QueryType.CUSTOM)
+        data: Input dataset as a list of dictionaries
+        query_type: Type of query to process
+        privacy_method: Privacy-enhancing technology to use
+        privacy_params: Additional parameters for the privacy method
+        custom_query: Optional custom query parameters
         validate_consent: Whether to validate user consent
-        user_id_field: Field name containing user IDs
-        db: Database session for consent checking
+        user_id_field: Field name for user IDs in the data
+        db: Optional database session for consent validation
         
     Returns:
-        Results with privacy applied
+        Dictionary with processed result and metadata
     """
     start_time = time.time()
     process_id = os.getpid()

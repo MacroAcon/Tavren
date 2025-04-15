@@ -320,6 +320,6 @@ class ConsentExportService:
         expected_signature = self._sign_export(export_hash)
         return hmac.compare_digest(provided_signature, expected_signature)
 
-async def get_consent_export(db: AsyncSession = Depends(get_db)) -> ConsentExportService:
+async def get_consent_export(db = Depends(get_db)) -> ConsentExportService:
     """Dependency injection for the consent export utility."""
     return ConsentExportService(db) 

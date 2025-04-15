@@ -1,7 +1,8 @@
 """
 Pydantic schemas for data packaging operations.
 """
-from pydantic import BaseModel, Field
+from __future__ import annotations
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
 
@@ -22,8 +23,8 @@ class DataPackageRequest(BaseModel):
     buyer_id: Optional[str] = Field(None, description="ID of the data buyer")
     trust_tier: Optional[str] = Field("standard", description="Trust tier of the buyer (low, standard, high)")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "user_id": "user123",
                 "data_type": "location",
@@ -34,6 +35,7 @@ class DataPackageRequest(BaseModel):
                 "trust_tier": "standard"
             }
         }
+    )
 
 class DataAccessRequest(BaseModel):
     """Schema for requesting access to a data package."""
@@ -88,8 +90,7 @@ class DataPackageAuditResponse(DataPackageAuditCreate):
     id: int
     timestamp: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class DataSchemaInfo(BaseModel):
     """Information about available data schemas."""

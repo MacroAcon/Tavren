@@ -4,9 +4,11 @@ Provides endpoints for buyers to request and access data packages.
 """
 
 import logging
-from typing import Dict, Any, List
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Security
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, Any, List, TYPE_CHECKING
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Security, Depends
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas import DataPackageRequest, DataPackageResponse, DataAccessRequest
@@ -24,7 +26,7 @@ buyer_data_router = APIRouter(
 @buyer_data_router.post("/request", response_model=DataPackageResponse)
 async def request_data_package(
     request: DataPackageRequest,
-    db: AsyncSession = Depends(get_db),
+    db: "AsyncSession" = Depends(get_db),
     data_service: DataService = Depends(get_data_service)
 ):
     """
@@ -69,7 +71,7 @@ async def request_data_package(
 async def get_data_package(
     package_id: str = Path(..., description="The ID of the data package"),
     access_token: str = Query(..., description="Access token for the data package"),
-    db: AsyncSession = Depends(get_db),
+    db: "AsyncSession" = Depends(get_db),
     data_service: DataService = Depends(get_data_service)
 ):
     """
@@ -116,7 +118,7 @@ async def get_data_package(
 
 @buyer_data_router.get("/available-types", response_model=List[Dict[str, Any]])
 async def get_available_data_types(
-    db: AsyncSession = Depends(get_db),
+    db: "AsyncSession" = Depends(get_db),
     data_service: DataService = Depends(get_data_service)
 ):
     """

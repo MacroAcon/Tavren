@@ -1,16 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from typing import List
 
 from app.database import get_db
-from app.schemas import (
-    BuyerTrustStats,
-    BuyerAccessLevel,
-    FilteredOffer,
-    UserDisplay # Added UserDisplay schema
-)
-from app.services.buyer_service import BuyerService # Added service
 from app.auth import get_current_active_user # Added auth dependency
 
 # Get logger
@@ -22,11 +15,15 @@ buyer_router = APIRouter(
     tags=["buyers"]
 )
 
-@buyer_router.get("/insights", response_model=List[BuyerTrustStats])
-async def get_buyer_insights(db: AsyncSession = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
+@buyer_router.get("/insights")
+async def get_buyer_insights(db = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Get trust statistics and insights for all buyers using BuyerService.
     """
+    # Import schemas and services inside the endpoint to avoid circular imports
+    from app.schemas import BuyerTrustStats, UserDisplay
+    from app.services.buyer_service import BuyerService
+    
     log.info("Fetching buyer trust insights via service")
     try:
         buyer_service = BuyerService(db)
@@ -43,11 +40,15 @@ offer_router = APIRouter(
     tags=["offers"]
 )
 
-@offer_router.get("/available/{buyer_id}", response_model=BuyerAccessLevel)
-async def get_buyer_access_level_endpoint(buyer_id: str, db: AsyncSession = Depends(get_db)):
+@offer_router.get("/available/{buyer_id}")
+async def get_buyer_access_level_endpoint(buyer_id: str, db = Depends(get_db)):
     """
     Determine a buyer's access level using BuyerService.
     """
+    # Import schemas and services inside the endpoint to avoid circular imports
+    from app.schemas import BuyerAccessLevel
+    from app.services.buyer_service import BuyerService
+    
     log.info(f"Determining access level for buyer {buyer_id} via service")
     try:
         buyer_service = BuyerService(db)
@@ -58,11 +59,15 @@ async def get_buyer_access_level_endpoint(buyer_id: str, db: AsyncSession = Depe
         log.error(f"Failed to determine buyer access level via service: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error determining buyer access level.")
 
-@offer_router.get("/feed/{buyer_id}", response_model=List[FilteredOffer])
-async def get_offer_feed_endpoint(buyer_id: str, db: AsyncSession = Depends(get_db)):
+@offer_router.get("/feed/{buyer_id}")
+async def get_offer_feed_endpoint(buyer_id: str, db = Depends(get_db)):
     """
     Get a filtered list of offers using BuyerService.
     """
+    # Import schemas and services inside the endpoint to avoid circular imports
+    from app.schemas import FilteredOffer
+    from app.services.buyer_service import BuyerService
+    
     log.info(f"Getting offer feed for buyer {buyer_id} via service")
     try:
         buyer_service = BuyerService(db)

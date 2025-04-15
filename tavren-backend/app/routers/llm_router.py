@@ -27,7 +27,7 @@ llm_router = APIRouter(
 @llm_router.post("/process", response_model=LLMProcessResponse)
 async def process_with_llm(
     request: LLMProcessRequest,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     llm_service: LLMService = Depends(get_llm_service),
     current_user: UserDisplay = Depends(get_current_active_user)
 ):
@@ -59,7 +59,7 @@ async def process_with_llm(
 @llm_router.post("/embedding", response_model=EmbeddingResponse)
 async def generate_embedding(
     request: EmbeddingRequest,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     llm_service: LLMService = Depends(get_llm_service),
     current_user: UserDisplay = Depends(get_current_active_user)
 ):
@@ -90,7 +90,7 @@ async def generate_embedding(
 @llm_router.post("/rag", response_model=RAGGenerationResponse)
 async def retrieval_augmented_generation(
     request: RAGGenerationRequest,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     llm_service: LLMService = Depends(get_llm_service),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     current_user: UserDisplay = Depends(get_current_active_user)
@@ -144,7 +144,7 @@ async def retrieval_augmented_generation(
 
 @llm_router.get("/models", response_model=List[Dict[str, Any]])
 async def list_available_models(
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     llm_service: LLMService = Depends(get_llm_service),
     current_user: UserDisplay = Depends(get_current_active_user)
 ):
@@ -168,7 +168,7 @@ async def list_available_models(
 
 @llm_router.get("/status", response_model=Dict[str, Any])
 async def check_llm_connection_status(
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     llm_service: LLMService = Depends(get_llm_service),
     current_user: UserDisplay = Depends(get_current_active_user)
 ):

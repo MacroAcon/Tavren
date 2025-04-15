@@ -3,13 +3,14 @@ Data Service for coordinating data operations across packaging, consent, and buy
 """
 import logging
 from typing import Dict, Any, Optional
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models import ConsentEvent
 from app.services.data_packaging import DataPackagingService, get_data_packaging_service
 from app.services.trust_service import TrustService
+from app.database import get_db
 
 # Set up logging
 log = logging.getLogger("app")

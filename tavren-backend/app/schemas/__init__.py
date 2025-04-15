@@ -2,10 +2,14 @@
 Schemas module for Tavren backend.
 Centralizes Pydantic models used throughout the application.
 """
+from __future__ import annotations
 
 # Import all schemas to make them available from the schemas package
 from app.schemas.consent import (
     ConsentEventCreate,
+    ConsentEventResponse,
+    ConsentLedgerExport,
+    LedgerVerificationResult,
     ReasonStats,
     AgentTrainingContext,
     AgentTrainingExample,
@@ -71,6 +75,20 @@ from app.schemas.llm import (
 from .insight import InsightRequest, InsightResponse, ApiInfoResponse
 
 __all__ = [
+    # Consent schemas
+    'ConsentEventCreate',
+    'ConsentEventResponse',
+    'ConsentLedgerExport',
+    'LedgerVerificationResult',
+    'ReasonStats',
+    'AgentTrainingContext',
+    'AgentTrainingExample',
+    'BuyerTrustStats',
+    'BuyerAccessLevel',
+    'FilteredOffer',
+    'SuggestionSuccessStats',
+    
+    # Insight schemas
     'InsightRequest', 
     'InsightResponse', 
     'ApiInfoResponse'

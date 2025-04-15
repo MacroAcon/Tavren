@@ -1,17 +1,8 @@
-from .wallet import (
-    calculate_user_balance,
-    calculate_user_trust_score,
-    process_payout_paid,
-    get_payout_request_or_404
-)
+from app.services.wallet_service import WalletService
+from app.services.trust_service import TrustService
+from app.services.buyer_service import BuyerService
 
-from .buyer_insights import (
-    get_buyer_trust_stats,
-    calculate_buyer_trust_score,
-    get_buyer_access_level,
-    get_filtered_offers,
-    MOCK_OFFERS
-)
+from .buyer_insights import MOCK_OFFERS
 
 from .insight_processor import (
     process_insight,
@@ -20,17 +11,12 @@ from .insight_processor import (
 )
 
 __all__ = [
-    # Wallet utilities
-    'calculate_user_balance',
-    'calculate_user_trust_score',
-    'process_payout_paid',
-    'get_payout_request_or_404',
+    # Services
+    'WalletService',
+    'TrustService',
+    'BuyerService',
     
-    # Buyer insights utilities
-    'get_buyer_trust_stats',
-    'calculate_buyer_trust_score',
-    'get_buyer_access_level',
-    'get_filtered_offers',
+    # Mock data
     'MOCK_OFFERS',
     
     # Insight processor utilities

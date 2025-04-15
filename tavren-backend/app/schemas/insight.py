@@ -1,3 +1,4 @@
+from __future__ import annotations
 from enum import Enum
 from typing import Dict, List, Any, Optional, Union
 from pydantic import BaseModel, Field, validator
@@ -5,6 +6,7 @@ import pandas as pd
 import json
 import io
 
+# Import enums from insight_processor to avoid circular imports
 from app.utils.insight_processor import QueryType, PrivacyMethod
 
 class DataFormat(str, Enum):

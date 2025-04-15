@@ -2,7 +2,7 @@
 Router for RAG evaluation and feedback endpoints.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Path, Depends
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession

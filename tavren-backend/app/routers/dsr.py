@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.services.dsr_service import DSRService, get_dsr_service
-from app.auth import get_current_user_id, oauth2_scheme
+from app.auth import get_current_active_user, oauth2_scheme
 from app.schemas import UserInDB
 
 # Rate limiting functionality
@@ -34,9 +34,9 @@ async def export_user_data(
     include_consent: bool = True,
     include_rewards: bool = True,
     include_payouts: bool = True,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     dsr_service: DSRService = Depends(get_dsr_service),
-    user_id: str = Depends(get_current_user_id),
+    current_user: UserInDB = Depends(get_current_active_user),
     rate_limiter: RateLimiter = Depends(get_rate_limiter)
 ):
     """
@@ -50,6 +50,8 @@ async def export_user_data(
     
     All exports are logged for audit purposes.
     """
+    user_id = current_user.id
+    
     # Rate limit check
     rate_limit_key = f"dsr:export:{user_id}"
     if not await rate_limiter.check_rate_limit(rate_limit_key, limit=1, period=DSR_RATE_LIMIT):
@@ -104,9 +106,9 @@ async def export_user_data(
 async def delete_user_data(
     delete_profile: bool = True,
     delete_consent: bool = False,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     dsr_service: DSRService = Depends(get_dsr_service),
-    user_id: str = Depends(get_current_user_id),
+    current_user: UserInDB = Depends(get_current_active_user),
     rate_limiter: RateLimiter = Depends(get_rate_limiter)
 ):
     """
@@ -120,6 +122,8 @@ async def delete_user_data(
     
     All deletion requests are logged for audit purposes.
     """
+    user_id = current_user.id
+    
     # Rate limit check
     rate_limit_key = f"dsr:delete:{user_id}"
     if not await rate_limiter.check_rate_limit(rate_limit_key, limit=1, period=DSR_RATE_LIMIT):
@@ -165,9 +169,9 @@ async def delete_user_data(
 async def restrict_data_processing(
     restriction_scope: str = "all",
     restriction_reason: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     dsr_service: DSRService = Depends(get_dsr_service),
-    user_id: str = Depends(get_current_user_id),
+    current_user: UserInDB = Depends(get_current_active_user),
     rate_limiter: RateLimiter = Depends(get_rate_limiter)
 ):
     """
@@ -180,6 +184,8 @@ async def restrict_data_processing(
     
     All restriction requests are logged for audit purposes.
     """
+    user_id = current_user.id
+    
     # Rate limit check
     rate_limit_key = f"dsr:restrict:{user_id}"
     if not await rate_limiter.check_rate_limit(rate_limit_key, limit=1, period=DSR_RATE_LIMIT):

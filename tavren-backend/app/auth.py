@@ -85,7 +85,7 @@ async def validate_admin_api_key(api_key: str = Security(admin_api_key_header)) 
 
 # --- Dependency --- #
 
-async def get_current_user(db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme)) -> UserInDB:
+async def get_current_user(db = Depends(get_db), token: str = Depends(oauth2_scheme)) -> UserInDB:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -110,6 +110,10 @@ async def get_current_active_user(current_user: UserInDB = Depends(get_current_u
     #     raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+async def get_current_user_id(current_user: UserInDB = Depends(get_current_user)) -> str:
+    """Return just the user ID from the current user for use in APIs that only need the ID."""
+    return current_user.id
+
 # --- Auth Router --- #
 
 from fastapi import APIRouter
@@ -120,7 +124,7 @@ auth_router = APIRouter(
 )
 
 @auth_router.post("/token", response_model=Token)
-async def login_for_access_token(db: AsyncSession = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(db = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     user = await authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -152,7 +156,7 @@ async def refresh_access_token(current_user: UserInDB = Depends(get_current_user
 @auth_router.post("/register", response_model=UserDisplay, status_code=status.HTTP_201_CREATED)
 async def register_user(
     user_in: UserCreate, 
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     is_admin: bool = Depends(validate_admin_api_key)
 ):
     """

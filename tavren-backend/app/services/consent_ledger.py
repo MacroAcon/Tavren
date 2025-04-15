@@ -5,7 +5,7 @@ import os
 import time
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -14,6 +14,7 @@ from app.models import ConsentEvent
 from app.schemas import ConsentEventCreate, ConsentEventResponse
 from app.config import get_settings
 from app.utils.db_utils import safe_commit
+from app.database import get_db
 
 # Get logger
 log = logging.getLogger("app")

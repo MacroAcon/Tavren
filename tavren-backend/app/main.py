@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 import logging
+from typing import List
 
 # Rate Limiting
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -12,22 +13,23 @@ from .models import Base
 # from .database import engine # Remove sync engine import
 from .config import settings, setup_logging
 from .middleware import RateLimitHeaderMiddleware, RequestTimingMiddleware
+from .utils.rate_limit import get_redis_status
 
 # Import routers
 from .routers import (
-    static_router,
+    static_router,  # No longer commented out, circular imports have been fixed
     consent_router,
     consent_dashboard_router,
-    buyer_router,
+    buyers_router,
     offer_router,
     reward_router,
     wallet_router,
     payout_router,
-    auth_router,
     data_packaging_router,
     insight_router,
     dsr_router,
-    agent_router
+    agent_router,
+    user_router
 )
 
 from .routers.buyer_data import buyer_data_router
@@ -35,8 +37,8 @@ from .routers.llm_router import llm_router
 from .routers.embedding_router import embedding_router
 from .routers.consent_ledger import consent_ledger_router
 from .routers.consent_export import router as consent_export_router
-from app.routers import users, data, consent, payment, embeddings, evaluation
-from .routers import user_router
+# Already importing from .routers, don't need these separate imports
+# from app.routers import users, data, consent, payment, embeddings, evaluation
 
 # Import exception handlers
 from .exceptions import register_exception_handlers
@@ -54,8 +56,13 @@ log = logging.getLogger("app")
 # Rate Limiter Setup
 limiter = Limiter(key_func=get_remote_address)
 
-# Async database engine (already defined in database.py)
-# from .database import async_engine # No need to import again if imported above
+# Functions to fix AsyncSession response model issues
+def cleanup_route_response_models(app: FastAPI) -> None:
+    """Fix AsyncSession response model issue by setting response_model=None for all routes."""
+    log.info("Setting response_model=None for all routes to avoid AsyncSession issues")
+    for route in app.routes:
+        if hasattr(route, "response_model"):
+            route.response_model = None
 
 # Create FastAPI app
 app = FastAPI(
@@ -87,6 +94,10 @@ async def startup_event():
     if not data_dir.exists():
         log.info(f"Creating data directory: {data_dir}")
         data_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Log startup summary
+    redis_status = get_redis_status()
+    log.info(f"✅ Tavren backend started. Redis status: {redis_status}.")
 
 # Apply Rate Limiter to App
 app.state.limiter = limiter
@@ -104,6 +115,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Attempt to fix AsyncSession response model issues
+try:
+    cleanup_route_response_models(app)
+except Exception as e:
+    log.warning(f"Failed to cleanup route response models: {str(e)}")
+    # Continue app startup even if this fails
 
 # Register old exception handlers (legacy)
 register_exception_handlers(app)
@@ -131,8 +149,9 @@ app.include_router(consent_export_router)
 app.include_router(dsr_router)
 
 # Buyer routes
-app.include_router(buyer_router)
+app.include_router(buyers_router)
 app.include_router(buyer_data_router)
+app.include_router(offer_router)
 
 # Wallet and payout routes
 app.include_router(reward_router)
@@ -154,8 +173,8 @@ app.include_router(llm_router)
 # Embedding and vector search routes
 app.include_router(embedding_router)
 
-# Authentication router
-app.include_router(auth_router)
+# Authentication and user routes
+app.include_router(user_router)
 
 # Add a simple root endpoint
 @app.get("/")
@@ -164,14 +183,15 @@ async def root(request: Request):
     """Root endpoint that redirects to the API documentation."""
     return {"message": "Welcome to Tavren API. See /docs for API documentation."}
 
+# Remove duplicate includes
 # Include routers
-app.include_router(users.router)  
-app.include_router(data.router)
-app.include_router(consent.router)
-app.include_router(payment.router)
-app.include_router(embeddings.router)
-app.include_router(evaluation.router)  # Add the evaluation router
-app.include_router(user_router)  # Add the user router
+# app.include_router(users.router)  
+# app.include_router(data.router)
+# app.include_router(consent.router)
+# app.include_router(payment.router)
+# app.include_router(embeddings.router)
+# app.include_router(evaluation.router)
+# app.include_router(user_router)
 
 # For direct execution with Python
 if __name__ == "__main__":

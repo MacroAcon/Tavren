@@ -5,7 +5,7 @@ Provides endpoints for packaging data, validating tokens, and retrieving package
 
 import logging
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Path, Security
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Security, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -39,7 +39,7 @@ data_packaging_router = APIRouter(
 )
 async def create_data_package(
     request: DataPackageRequest, 
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     data_packaging_service: DataPackagingService = Depends(get_data_packaging_service),
     consent_validator: ConsentValidator = Depends(get_consent_validator)
 ):
@@ -77,7 +77,7 @@ async def create_data_package(
 async def get_data_package(
     package_id: str = Path(..., description="The ID of the data package to retrieve"),
     access_token: Optional[str] = Query(None, description="Access token for the package"),
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     data_packaging_service: DataPackagingService = Depends(get_data_packaging_service)
 ):
     """
@@ -119,7 +119,7 @@ async def get_data_package(
 @data_packaging_router.post("/validate-token", response_model=Dict[str, Any])
 async def validate_access_token(
     request: DataAccessRequest,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     data_packaging_service: DataPackagingService = Depends(get_data_packaging_service)
 ):
     """
@@ -160,7 +160,7 @@ async def validate_access_token(
 @data_packaging_router.get("/audit/{package_id}", response_model=List[DataPackageAuditResponse])
 async def get_package_audit_trail(
     package_id: str = Path(..., description="The ID of the data package"),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Retrieve the audit trail for a specific data package.
@@ -188,7 +188,7 @@ async def get_package_audit_trail(
 
 @data_packaging_router.get("/schemas", response_model=List[DataSchemaInfo])
 async def get_available_schemas(
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     data_packaging_service: DataPackagingService = Depends(get_data_packaging_service)
 ):
     """

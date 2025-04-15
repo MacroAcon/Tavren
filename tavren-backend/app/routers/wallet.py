@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import logging
@@ -44,7 +44,7 @@ reward_router = APIRouter(
 )
 
 @reward_router.post("", response_model=RewardDisplay)
-async def create_reward(reward: RewardCreate, db: AsyncSession = Depends(get_db)):
+async def create_reward(reward: RewardCreate, db = Depends(get_db)):
     """
     Create a new reward for a user.
     
@@ -65,7 +65,7 @@ async def create_reward(reward: RewardCreate, db: AsyncSession = Depends(get_db)
         handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error creating reward.")
 
 @reward_router.get("/history/{user_id}", response_model=List[RewardDisplay])
-async def get_reward_history(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_reward_history(user_id: str, db = Depends(get_db)):
     """
     Get reward history for a specific user.
     """
@@ -89,7 +89,7 @@ wallet_router = APIRouter(
 )
 
 @wallet_router.get("/{user_id}", response_model=WalletBalance)
-async def get_wallet_balance(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_wallet_balance(user_id: str, db = Depends(get_db)):
     """
     Get wallet balance for a specific user.
     
@@ -122,7 +122,7 @@ async def get_wallet_balance(user_id: str, db: AsyncSession = Depends(get_db)):
         handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error fetching wallet balance.")
 
 @wallet_router.post("/claim", response_model=PayoutRequestDisplay)
-async def request_payout(request: PayoutRequestCreate, db: AsyncSession = Depends(get_db)):
+async def request_payout(request: PayoutRequestCreate, db = Depends(get_db)):
     """
     Request a payout from the wallet.
     
@@ -147,7 +147,7 @@ async def request_payout(request: PayoutRequestCreate, db: AsyncSession = Depend
         handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error creating payout request.")
 
 @wallet_router.get("/payouts/{user_id}", response_model=List[PayoutRequestDisplay])
-async def get_payout_history(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_payout_history(user_id: str, db = Depends(get_db)):
     """
     Get payout history for a specific user.
     """
@@ -171,7 +171,7 @@ payout_router = APIRouter(
 )
 
 @payout_router.post("/{payout_id}/mark-paid", response_model=PayoutRequestDisplay)
-async def mark_payout_paid(payout_id: int, db: AsyncSession = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
+async def mark_payout_paid(payout_id: int, db = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
     """
     Mark a payout request as paid.
     
@@ -199,7 +199,7 @@ async def mark_payout_paid(payout_id: int, db: AsyncSession = Depends(get_db), c
         handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to mark payout {payout_id} as paid.")
 
 @payout_router.post("/{payout_id}/mark-failed", response_model=PayoutRequestDisplay)
-async def mark_payout_failed(payout_id: int, db: AsyncSession = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
+async def mark_payout_failed(payout_id: int, db = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
     """
     Mark a payout request as failed.
     
@@ -232,7 +232,7 @@ async def mark_payout_failed(payout_id: int, db: AsyncSession = Depends(get_db),
         handle_exception(e, HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to mark payout {payout_id} as failed.")
 
 @payout_router.post("/process-auto", response_model=AutoProcessSummary)
-async def process_automatic_payouts(db: AsyncSession = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
+async def process_automatic_payouts(db = Depends(get_db), current_user: UserDisplay = Depends(get_current_active_user)):
     """
     Process pending payouts automatically using PayoutService.
     """

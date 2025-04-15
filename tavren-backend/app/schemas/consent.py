@@ -1,8 +1,9 @@
 """
 Pydantic schemas for consent-related operations.
 """
+from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from datetime import datetime
 
 from app.constants.consent import (
@@ -23,6 +24,34 @@ class ConsentEventCreate(BaseModel):
     timestamp: Optional[datetime] = None
     user_reason: Optional[str] = None
     reason_category: Optional[str] = None
+
+class ConsentEventResponse(BaseModel):
+    """Model for consent event responses with additional fields"""
+    id: int = Field(..., description="Unique identifier for the consent event")
+    user_id: str = Field(..., description="ID of the user associated with this consent event")
+    offer_id: str = Field(..., description="ID of the offer associated with this consent event")
+    action: str = Field(..., description="Action taken (opt_in, opt_out, withdraw, grant_partial, etc.)")
+    timestamp: datetime = Field(..., description="When the consent event occurred")
+    user_reason: Optional[str] = Field(None, description="User-provided reason for this consent action")
+    reason_category: Optional[str] = Field(None, description="Categorized reason (privacy, trust, complexity, etc.)")
+    verification_hash: Optional[str] = Field(None, description="Verification hash for tamper evidence")
+    prev_hash: Optional[str] = Field(None, description="Hash of the previous event in the chain")
+
+    class Config:
+        from_attributes = True  # Modern Pydantic v2 attribute for ORM mode
+
+class ConsentLedgerExport(BaseModel):
+    """Model for exporting the consent ledger"""
+    events: List[ConsentEventResponse] = Field(..., description="List of consent events")
+    exported_at: datetime = Field(default_factory=datetime.now, description="When the export was created")
+    total_events: int = Field(..., description="Total number of events in the export")
+
+class LedgerVerificationResult(BaseModel):
+    """Model for ledger verification results"""
+    verified: bool = Field(..., description="Whether the ledger integrity is verified")
+    users_checked: int = Field(..., description="Number of users checked")
+    events_checked: int = Field(..., description="Number of events checked")
+    inconsistencies: List[Dict[str, Any]] = Field([], description="Details of any inconsistencies found")
 
 class ReasonStats(BaseModel):
     """Schema for reason statistics."""

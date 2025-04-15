@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Path, Response, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Response, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -33,7 +33,7 @@ consent_ledger_router = APIRouter(
 @consent_ledger_router.post("", response_model=ConsentEventResponse)
 async def record_consent_event(
     event: ConsentEventCreate,
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     consent_ledger_service: ConsentLedgerService = Depends(get_consent_ledger_service)
 ):
     """
@@ -61,7 +61,7 @@ async def record_consent_event(
 @consent_ledger_router.get("/users/{user_id}", response_model=List[ConsentEventResponse])
 async def get_user_consent_history(
     user_id: str = Path(..., description="ID of the user to get consent history for"),
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     consent_ledger_service: ConsentLedgerService = Depends(get_consent_ledger_service)
 ):
     """
@@ -88,7 +88,7 @@ async def export_consent_ledger(
     save_file: bool = Query(False, description="Save export to file on server"),
     download: bool = Query(True, description="Download export as a file"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
 ):
     """
     Generate a verifiable export of the user's consent events and processing history.
@@ -139,7 +139,7 @@ async def export_user_consent_ledger(
     save_file: bool = Query(True, description="Save export to file on server"),
     download: bool = Query(False, description="Download export as a file"),
     current_admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
 ):
     """
     [Admin only] Generate a verifiable export of any user's consent events and processing history.
@@ -178,7 +178,7 @@ async def export_user_consent_ledger(
 @consent_ledger_router.get("/verify", response_model=LedgerVerificationResult)
 async def verify_ledger_integrity(
     user_id: Optional[str] = Query(None, description="Optional user ID to verify only that user's events"),
-    db: AsyncSession = Depends(get_db),
+    db = Depends(get_db),
     consent_ledger_service: ConsentLedgerService = Depends(get_consent_ledger_service),
     current_user = Depends(get_current_active_user)
 ):
