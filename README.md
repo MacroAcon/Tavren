@@ -49,8 +49,8 @@ app/
 
 2. Create and activate a virtual environment:
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
    ```
 
 3. Install dependencies:
@@ -64,6 +64,19 @@ app/
    ```
    
 5. Edit `.env` with your configuration settings
+
+### Development Environment
+
+For detailed information about setting up your development environment, virtual environment conventions, requirements management, and IDE configuration, please refer to our [Development Setup Guide](docs/DEVELOPMENT_SETUP.md).
+
+### Documentation Map
+
+Key project documentation:
+- [Architecture Documentation](docs/ARCHITECTURE.md)
+- [User Guide](docs/USER_GUIDE.md)
+- [API Documentation](docs/API.md)
+- [Glossary](docs/GLOSSARY.md)
+- [Development Setup Guide](docs/DEVELOPMENT_SETUP.md)
 
 ### Database Setup
 
