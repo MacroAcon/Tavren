@@ -36,6 +36,7 @@ Tavren bridges the gap between users generating valuable data and businesses see
 - [Tavren-to-Agent Training Interface Layer.md](Tavren-to-Agent%20Training%20Interface%20Layer.md) - Integration with agent training systems
 
 ### Development & Deployment
+- [DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md) - Development environment setup and best practices
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment process and instructions
 - [REFACTORING.md](REFACTORING.md) - History of major refactorings and optimizations
 - [OPTIMIZATION_STRATEGY.md](../tavren-backend/OPTIMIZATION_STRATEGY.md) - Strategy for optimizing the codebase
@@ -63,6 +64,7 @@ For new team members or contributors, we recommend starting with:
 2. [ARCHITECTURE.md](ARCHITECTURE.md) - Learn about the technical implementation
 3. [USER_GUIDE.md](USER_GUIDE.md) - Understand the end-user experience
 4. [GLOSSARY.md](GLOSSARY.md) - Familiarize yourself with project terminology
+5. [DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md) - Set up your development environment properly
 
 ## Contributing
 

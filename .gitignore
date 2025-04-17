@@ -123,4 +123,47 @@ dmypy.json
 # Specific to this project
 tavren_dev.db
 *.db # Generally ignore SQLite databases
-*.db-journal # SQLite journals 
+*.db-journal # SQLite journals
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+.DS_Store
+
+# Log files
+*.log
+logs/
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Media and static files
+/media/
+/static/
+/node_modules/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover 
