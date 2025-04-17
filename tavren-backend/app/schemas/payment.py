@@ -26,8 +26,9 @@ class RewardDisplay(RewardBase):
     id: int
     timestamp: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class WalletBalance(BaseModel):
     """Schema for wallet balance."""
@@ -53,9 +54,9 @@ class PayoutRequestDisplay(PayoutRequestBase):
     status: str = Field(..., description="Status of the payout (pending, paid, failed)")
     paid_at: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
-        schema_extra = {
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
             "example": {
                 "id": 1,
                 "user_id": "user123",
@@ -65,6 +66,7 @@ class PayoutRequestDisplay(PayoutRequestBase):
                 "paid_at": None
             }
         }
+    }
 
 class AutoProcessSummary(BaseModel):
     """Schema for automatic payout process summary."""
@@ -75,5 +77,6 @@ class AutoProcessSummary(BaseModel):
     skipped_high_amount: int
     skipped_other_error: int
 
-    class Config:
-        orm_mode = True 
+    model_config = {
+        "from_attributes": True
+    } 

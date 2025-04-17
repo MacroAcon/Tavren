@@ -5,15 +5,17 @@ Uses Redis to track and limit request rates.
 
 import time
 import logging
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, TYPE_CHECKING
 from fastapi import Request, HTTPException, Depends, Depends
 import redis.asyncio as redis
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
-
 from app.config import settings
-from app.auth import get_current_active_user
+
+# Use TYPE_CHECKING to avoid runtime circular imports
+if TYPE_CHECKING:
+    from app.auth import get_current_active_user
 
 # Set up logging
 log = logging.getLogger("tavren.rate_limit")
@@ -22,11 +24,13 @@ log = logging.getLogger("tavren.rate_limit")
 redis_client = None
 try:
     # Get Redis URL from settings with a safe default for development
-    redis_url = getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
+    redis_url = getattr(settings, "REDIS_URL", None)
     
-    # Validate Redis URL scheme
-    if not any(redis_url.startswith(scheme) for scheme in ["redis://", "rediss://", "unix://"]):
-        log.warning("Redis disabled - invalid REDIS_URL scheme. Must be one of: redis://, rediss://, unix://")
+    # Validate Redis URL before attempting connection
+    if not redis_url or not isinstance(redis_url, str) or not any(
+        redis_url.startswith(scheme) for scheme in ["redis://", "rediss://", "unix://"]
+    ):
+        log.warning("Redis disabled - invalid or missing REDIS_URL. Must be one of: redis://, rediss://, unix://")
     else:
         redis_client = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
         log.info("Redis rate limiter initialized successfully")

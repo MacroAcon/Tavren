@@ -4,14 +4,13 @@ Provides endpoints for buyers to request and access data packages.
 """
 
 import logging
-from typing import Dict, Any, List, TYPE_CHECKING
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Security, Depends
+from typing import Dict, Any, List, TYPE_CHECKING, Annotated
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Security
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.schemas import DataPackageRequest, DataPackageResponse, DataAccessRequest
+from app.schemas import DataPackageRequest, DataPackageResponse, DataAccessRequest, DataSchemaInfo
 from app.services.data_service import DataService, get_data_service
 
 # Set up logging
@@ -23,11 +22,14 @@ buyer_data_router = APIRouter(
     tags=["buyer-data"]
 )
 
+# Using Annotated helps FastAPI distinguish dependency injection from response model fields,
+# preventing errors when a response_model is defined on a route that depends on non-Pydantic types like AsyncSession.
+DataServiceDep = Annotated[DataService, Depends(get_data_service)]
+
 @buyer_data_router.post("/request", response_model=DataPackageResponse)
 async def request_data_package(
     request: DataPackageRequest,
-    db: "AsyncSession" = Depends(get_db),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataServiceDep
 ):
     """
     Request a data package for a specific user and data type.
@@ -62,17 +64,17 @@ async def request_data_package(
         return data_package
         
     except Exception as e:
-        log.error(f"Error processing buyer data request: {str(e)}", exc_info=True)
-        if isinstance(e, HTTPException):
-            raise
-        raise HTTPException(status_code=500, detail=f"Error processing data request: {str(e)}")
+        log.error(f"Error requesting data package: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to process data package request"
+        )
 
 @buyer_data_router.get("/{package_id}", response_model=DataPackageResponse)
 async def get_data_package(
-    package_id: str = Path(..., description="The ID of the data package"),
-    access_token: str = Query(..., description="Access token for the data package"),
-    db: "AsyncSession" = Depends(get_db),
-    data_service: DataService = Depends(get_data_service)
+    package_id: Annotated[str, Path(..., description="The ID of the data package")],
+    access_token: Annotated[str, Query(..., description="Access token for the data package")],
+    data_service: DataServiceDep
 ):
     """
     Retrieve a previously created data package using the access token.
@@ -110,16 +112,16 @@ async def get_data_package(
         log.info(f"Successfully retrieved data package {package_id} for buyer")
         return package
         
-    except HTTPException:
-        raise
     except Exception as e:
-        log.error(f"Error retrieving data package: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving data package: {str(e)}")
+        log.error(f"Error retrieving data package {package_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve data package"
+        )
 
-@buyer_data_router.get("/available-types", response_model=List[Dict[str, Any]])
+@buyer_data_router.get("/types", response_model=List[DataSchemaInfo])
 async def get_available_data_types(
-    db: "AsyncSession" = Depends(get_db),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataServiceDep
 ):
     """
     Get a list of available data types that buyers can request.
@@ -130,44 +132,51 @@ async def get_available_data_types(
     - Required access level
     - Schema details
     """
-    # This is a simplified implementation
-    # In a full system, this would come from a configuration or database
-    data_types = [
-        {
-            "type": "app_usage",
-            "name": "Application Usage Data",
-            "description": "User application usage patterns including app opens, time spent, and interactions",
-            "access_levels": ["precise_persistent", "precise_short_term", "anonymous_persistent", "anonymous_short_term"],
-            "sample_fields": ["app_id", "timestamp", "duration", "action"]
-        },
-        {
-            "type": "location",
-            "name": "Location Data",
-            "description": "User location data including coordinates, accuracy, and timestamps",
-            "access_levels": ["precise_persistent", "precise_short_term", "anonymous_persistent", "anonymous_short_term"],
-            "sample_fields": ["timestamp", "latitude", "longitude", "accuracy"]
-        },
-        {
-            "type": "browsing_history",
-            "name": "Web Browsing History",
-            "description": "User web browsing history including URLs, page titles, and duration",
-            "access_levels": ["precise_persistent", "precise_short_term", "anonymous_persistent", "anonymous_short_term"],
-            "sample_fields": ["timestamp", "url", "duration", "page_title"]
-        },
-        {
-            "type": "health",
-            "name": "Health Data",
-            "description": "User health metrics like heart rate, steps, sleep data",
-            "access_levels": ["anonymous_persistent", "anonymous_short_term"],
-            "sample_fields": ["timestamp", "type", "measurement", "unit"]
-        },
-        {
-            "type": "financial",
-            "name": "Financial Data",
-            "description": "User financial transaction data including amounts, categories, and merchants",
-            "access_levels": ["anonymous_short_term"],
-            "sample_fields": ["timestamp", "type", "amount", "currency"]
-        }
-    ]
-    
-    return data_types 
+    try:
+        # This is a simplified implementation
+        # In a full system, this would come from a configuration or database
+        data_types = [
+            {
+                "type": "app_usage",
+                "name": "Application Usage Data",
+                "description": "User application usage patterns including app opens, time spent, and interactions",
+                "access_levels": ["precise_persistent", "precise_short_term", "anonymous_persistent", "anonymous_short_term"],
+                "sample_fields": ["app_id", "timestamp", "duration", "action"]
+            },
+            {
+                "type": "location",
+                "name": "Location Data",
+                "description": "User location data including coordinates, accuracy, and timestamps",
+                "access_levels": ["precise_persistent", "precise_short_term", "anonymous_persistent", "anonymous_short_term"],
+                "sample_fields": ["timestamp", "latitude", "longitude", "accuracy"]
+            },
+            {
+                "type": "browsing_history",
+                "name": "Web Browsing History",
+                "description": "User web browsing history including URLs, page titles, and duration",
+                "access_levels": ["precise_persistent", "precise_short_term", "anonymous_persistent", "anonymous_short_term"],
+                "sample_fields": ["timestamp", "url", "duration", "page_title"]
+            },
+            {
+                "type": "health",
+                "name": "Health Data",
+                "description": "User health metrics like heart rate, steps, sleep data",
+                "access_levels": ["anonymous_persistent", "anonymous_short_term"],
+                "sample_fields": ["timestamp", "type", "measurement", "unit"]
+            },
+            {
+                "type": "financial",
+                "name": "Financial Data",
+                "description": "User financial transaction data including amounts, categories, and merchants",
+                "access_levels": ["anonymous_short_term"],
+                "sample_fields": ["timestamp", "type", "amount", "currency"]
+            }
+        ]
+        
+        return data_types
+    except Exception as e:
+        log.error(f"Error retrieving available data types: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve available data types"
+        ) 

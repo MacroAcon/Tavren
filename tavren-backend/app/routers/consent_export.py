@@ -6,9 +6,9 @@ from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_403_FORBIDDEN, HTTP_400_BAD_REQUEST
 
-from app.db.session import get_db
-from app.models.user import User
-from app.auth.dependencies import get_current_user, get_current_admin_user
+from app.database import get_db
+from app.models import User
+from app.dependencies import get_current_user, get_current_admin_user
 from app.utils.consent_export import ConsentExportService, get_consent_export
 from app.utils.rate_limit import RateLimiter
 

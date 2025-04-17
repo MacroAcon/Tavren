@@ -26,8 +26,9 @@ class ConsentEventResponse(ConsentEventBase):
     verification_hash: Optional[str] = Field(None, description="Verification hash for tamper evidence")
     prev_hash: Optional[str] = Field(None, description="Hash of the previous event in the chain")
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class ConsentLedgerExport(BaseModel):
     """Model for exporting the consent ledger"""
@@ -96,8 +97,9 @@ class RewardDisplay(RewardBase):
     id: int
     timestamp: datetime
 
-    class Config:
-        orm_mode = True # Enable ORM mode for easy conversion
+    model_config = {
+        "from_attributes": True
+    }
 
 # Schema for wallet balance
 class WalletBalance(BaseModel):
@@ -122,8 +124,9 @@ class PayoutRequestDisplay(PayoutRequestBase):
     status: str # e.g., pending, paid, failed
     paid_at: Optional[datetime] = None # Include processing time
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 # --- Auto Process Summary Schema ---
 
@@ -135,8 +138,9 @@ class AutoProcessSummary(BaseModel):
     skipped_high_amount: int
     skipped_other_error: int
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 # --- Authentication Schemas ---
 
@@ -159,59 +163,68 @@ class UserInDB(UserBase):
     hashed_password: str
     is_active: bool
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class UserDisplay(UserBase): # Schema for returning user info safely
     id: int
     is_active: bool
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 # --- Data Packaging Schemas ---
 
-class DataPackageRequest(BaseModel):
-    """Schema for requesting data packaging"""
-    user_id: str
-    data_type: str = Field(..., description="Type of data being requested (e.g., app_usage, location)")
-    access_level: str = Field(..., description="Access level (precise_persistent, precise_short_term, anonymous_persistent, anonymous_short_term)")
-    consent_id: str = Field(..., description="ID of the consent record for this data exchange")
-    purpose: str = Field(..., description="Purpose for data use")
-    buyer_id: Optional[str] = Field(None, description="ID of the data buyer")
-    trust_tier: Optional[str] = Field("standard", description="Trust tier of the buyer (low, standard, high)")
+class DataSchemaInfo(BaseModel):
+    """Information about a data schema"""
+    name: str = Field(..., description="Name of the schema")
+    description: str = Field(..., description="Description of the schema")
+    fields: List[str] = Field(..., description="List of field names in the schema")
 
-class DataAccessRequest(BaseModel):
-    """Schema for requesting access to a data package"""
-    package_id: str
-    access_token: str
-    
-class DataPackageMetadata(BaseModel):
-    """Schema for data package metadata"""
-    record_count: int
-    schema_version: str
-    data_quality_score: float
-    buyer_id: Optional[str] = None
-    trust_tier: Optional[str] = None
-    encryption_status: str
-    mcp_context: Dict[str, Any]
+class DataPackageRequest(BaseModel):
+    """Request for a new data package"""
+    schema_name: str = Field(..., description="Name of the schema to use")
+    filters: Optional[Dict[str, Any]] = Field(None, description="Optional filters to apply to the data")
 
 class DataPackageResponse(BaseModel):
-    """Schema for data package response"""
-    tavren_data_package: str
-    package_id: str
-    consent_id: str
-    created_at: str
-    data_type: str
-    access_level: str
-    purpose: str
-    expires_at: str
-    anonymization_level: str
-    access_token: Optional[str] = None
-    content: Union[List[Dict[str, Any]], Dict[str, Any], str]
-    metadata: DataPackageMetadata
-    status: Optional[str] = None
-    reason: Optional[str] = None
+    """Response containing a data package"""
+    package_id: str = Field(..., description="Unique identifier for the package")
+    schema_name: str = Field(..., description="Name of the schema used")
+    data: Dict[str, Any] = Field(..., description="The packaged data")
+    created_at: str = Field(..., description="ISO format timestamp of when the package was created")
+
+class DataAccessRequest(BaseModel):
+    """Request to access a data package"""
+    package_id: str = Field(..., description="ID of the package to access")
+    access_token: str = Field(..., description="Token granting access to the package")
+
+class DataPackageMetadata(BaseModel):
+    """Metadata about a data package"""
+    package_id: str = Field(..., description="Unique identifier for the package")
+    schema_name: str = Field(..., description="Name of the schema used")
+    created_at: str = Field(..., description="ISO format timestamp of when the package was created")
+    expires_at: Optional[str] = Field(None, description="ISO format timestamp of when the package expires")
+    status: str = Field(..., description="Current status of the package (e.g., 'active', 'expired')")
+
+class ErrorResponse(BaseModel):
+    """Standard error response"""
+    error: str = Field(..., description="Error message")
+    details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
+
+class SuccessResponse(BaseModel):
+    """Standard success response"""
+    message: str = Field(..., description="Success message")
+    data: Optional[Dict[str, Any]] = Field(None, description="Additional response data")
+
+class SchemaListResponse(BaseModel):
+    """Response containing list of available schemas"""
+    schemas: List[DataSchemaInfo] = Field(..., description="List of available schemas")
+
+class PackageListResponse(BaseModel):
+    """Response containing list of data packages"""
+    packages: List[DataPackageMetadata] = Field(..., description="List of data packages")
 
 class DataPackageAuditCreate(BaseModel):
     """Schema for creating audit records"""
@@ -233,17 +246,10 @@ class DataPackageAuditResponse(DataPackageAuditCreate):
     """Schema for audit record responses"""
     id: int
     timestamp: datetime
-    
-    class Config:
-        orm_mode = True
 
-class DataSchemaInfo(BaseModel):
-    """Information about available data schemas"""
-    data_type: str
-    schema_version: str
-    required_fields: List[str]
-    description: str
-    example: Dict[str, Any]
+    model_config = {
+        "from_attributes": True
+    }
 
 # Schema for LLM processing requests
 class LLMProcessRequest(BaseModel):
@@ -269,17 +275,17 @@ class EmbeddingRequest(BaseModel):
     embedding_type: Optional[str] = "content"
     use_nvidia_api: bool = True
     metadata: Optional[Dict[str, Any]] = None
-    
-    class Config:
-        schema_extra = {
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "text": "Sample text to embed",
-                "package_id": None,
-                "model_name": "llama-3_2-nv-embedqa-1b-v2",
+                "text": "This is a sample text to embed",
+                "model_name": "text-embedding-ada-002",
                 "embedding_type": "content",
                 "use_nvidia_api": True
             }
         }
+    }
 
 # Schema for embedding responses
 class EmbeddingResponse(BaseModel):
@@ -298,17 +304,17 @@ class VectorSearchRequest(BaseModel):
     top_k: Optional[int] = None
     use_nvidia_api: bool = True
     filter_metadata: Optional[Dict[str, Any]] = None
-    
-    class Config:
-        schema_extra = {
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "query_text": "User location data from last week",
-                "embedding_type": "content",
+                "query_text": "What privacy controls are available?",
+                "embedding_type": "query",
                 "top_k": 5,
-                "use_nvidia_api": True,
-                "filter_metadata": {"data_type": "location"}
+                "use_nvidia_api": True
             }
         }
+    }
 
 # Schema for vector search responses
 class VectorSearchResponse(BaseModel):
@@ -320,14 +326,15 @@ class VectorSearchResponse(BaseModel):
 class IndexPackageRequest(BaseModel):
     package_id: str
     use_nvidia_api: bool = True
-    
-    class Config:
-        schema_extra = {
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "package_id": "pkg_abc123",
+                "package_id": "pkg_b8f9c2d1",
                 "use_nvidia_api": True
             }
         }
+    }
 
 # Schema for package indexing responses
 class IndexPackageResponse(BaseModel):
@@ -341,15 +348,16 @@ class RAGRequest(BaseModel):
     query_text: str
     top_k: Optional[int] = None
     max_tokens: Optional[int] = None
-    
-    class Config:
-        schema_extra = {
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "query_text": "What locations did the user visit last weekend?",
+                "query_text": "What are the privacy controls available in Tavren?",
                 "top_k": 3,
                 "max_tokens": 1000
             }
         }
+    }
 
 # Schema for RAG responses
 class RAGResponse(BaseModel):
@@ -368,18 +376,19 @@ class RAGGenerationRequest(BaseModel):
     context_max_tokens: Optional[int] = 2000
     response_max_tokens: Optional[int] = 1000
     temperature: Optional[float] = 0.7
-    
-    class Config:
-        schema_extra = {
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "query": "What locations did the user visit last weekend?",
-                "instructions": "Provide a concise summary of the user's locations from the retrieved data.",
+                "query": "What privacy controls are available to users?",
+                "instructions": "Provide a concise and accurate response based on the retrieved context.",
                 "top_k": 3,
                 "context_max_tokens": 2000,
-                "response_max_tokens": 500,
+                "response_max_tokens": 1000,
                 "temperature": 0.7
             }
         }
+    }
 
 # Schema for RAG generation responses
 class RAGGenerationResponse(BaseModel):
@@ -401,17 +410,18 @@ class HybridSearchRequest(BaseModel):
     top_k: Optional[int] = None
     use_nvidia_api: bool = True
     filter_metadata: Optional[Dict[str, Any]] = None
-    
-    class Config:
-        schema_extra = {
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "query_text": "User health data showing abnormal heart rate",
+                "query_text": "privacy controls GDPR compliance",
                 "semantic_weight": 0.7,
                 "keyword_weight": 0.3,
                 "top_k": 5,
-                "filter_metadata": {"data_type": "health"}
+                "use_nvidia_api": True
             }
         }
+    }
 
 # Schema for hybrid search responses
 class HybridSearchResponse(BaseModel):
@@ -431,17 +441,20 @@ class CrossPackageContextRequest(BaseModel):
     use_hybrid_search: bool = True
     semantic_weight: Optional[float] = 0.7
     keyword_weight: Optional[float] = 0.3
-    
-    class Config:
-        schema_extra = {
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "query_text": "How does the user's exercise impact their sleep patterns?",
-                "max_packages": 3,
+                "query_text": "Tavren user data privacy policies",
+                "max_packages": 5,
                 "max_items_per_package": 3,
                 "max_tokens": 2000,
-                "use_hybrid_search": True
+                "use_hybrid_search": True,
+                "semantic_weight": 0.7,
+                "keyword_weight": 0.3
             }
         }
+    }
 
 # Schema for cross-package context assembly responses
 class CrossPackageContextResponse(BaseModel):
@@ -462,16 +475,17 @@ class QueryExpansionRequest(BaseModel):
     use_hybrid_search: bool = True
     max_expansions: Optional[int] = 3
     expansion_model: Optional[str] = None
-    
-    class Config:
-        schema_extra = {
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "query_text": "How much did the user exercise last month?",
+                "query_text": "privacy settings",
                 "top_k": 5,
                 "use_hybrid_search": True,
                 "max_expansions": 3
             }
         }
+    }
 
 # Schema for query expansion search responses
 class QueryExpansionResponse(BaseModel):
@@ -490,22 +504,24 @@ class FacetedSearchRequest(BaseModel):
     facet_weights: Optional[Dict[str, float]] = None
     use_hybrid_search: bool = True
     top_k: Optional[int] = None
-    
-    class Config:
-        schema_extra = {
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "query_text": "User fitness activity data",
+                "query_text": "privacy controls",
                 "facets": {
-                    "data_type": ["fitness", "health"],
-                    "activity_type": ["running", "cycling"]
+                    "data_type": ["policy", "procedure"],
+                    "category": ["gdpr", "ccpa"]
                 },
                 "facet_weights": {
-                    "data_type": 0.6,
-                    "activity_type": 0.4
+                    "data_type": 0.3,
+                    "category": 0.7
                 },
-                "top_k": 10
+                "use_hybrid_search": True,
+                "top_k": 5
             }
         }
+    }
 
 # Schema for faceted search responses
 class FacetedSearchResponse(BaseModel):

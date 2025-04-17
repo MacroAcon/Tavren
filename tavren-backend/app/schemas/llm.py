@@ -1,7 +1,7 @@
 """
 Pydantic schemas for LLM, embedding, and vector search operations.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field 
 from typing import Optional, Dict, Any, List
 
 # LLM Processing Schemas
@@ -9,8 +9,9 @@ class LLMProcessRequest(BaseModel):
     """Schema for LLM processing requests."""
     package_id: str
     instructions: str
-    model_config: Optional[Dict[str, Any]] = None
+    llm_config: Optional[Dict[str, Any]] = None  # 🔁 renamed from model_config
     max_tokens: Optional[int] = None
+    
 
 class LLMProcessResponse(BaseModel):
     """Schema for LLM processing responses."""
@@ -31,8 +32,8 @@ class EmbeddingRequest(BaseModel):
     use_nvidia_api: bool = True
     metadata: Optional[Dict[str, Any]] = None
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "text": "Sample text to create embeddings for",
                 "model_name": "text-embedding-ada-002",
@@ -40,6 +41,7 @@ class EmbeddingRequest(BaseModel):
                 "use_nvidia_api": True
             }
         }
+    }
 
 class EmbeddingResponse(BaseModel):
     """Schema for embedding generation responses."""
@@ -60,8 +62,8 @@ class VectorSearchRequest(BaseModel):
     use_nvidia_api: bool = True
     filter_metadata: Optional[Dict[str, Any]] = None
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "query_text": "Sample search query",
                 "embedding_type": "content",
@@ -70,6 +72,7 @@ class VectorSearchRequest(BaseModel):
                 "filter_metadata": {"category": "health"}
             }
         }
+    }
 
 class VectorSearchResponse(BaseModel):
     """Schema for vector search responses."""
@@ -83,13 +86,14 @@ class IndexPackageRequest(BaseModel):
     package_id: str
     use_nvidia_api: bool = True
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "package_id": "package123",
                 "use_nvidia_api": True
             }
         }
+    }
 
 class IndexPackageResponse(BaseModel):
     """Schema for indexing package responses."""
@@ -105,14 +109,15 @@ class RAGRequest(BaseModel):
     top_k: Optional[int] = None
     max_tokens: Optional[int] = None
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "query_text": "What medications are available for diabetes?",
                 "top_k": 3,
                 "max_tokens": 1000
             }
         }
+    }
 
 class RAGResponse(BaseModel):
     """Schema for RAG retrieval responses."""
@@ -132,8 +137,8 @@ class RAGGenerationRequest(BaseModel):
     response_max_tokens: Optional[int] = 1000
     temperature: Optional[float] = 0.7
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "query": "What medications are available for diabetes?",
                 "instructions": "Provide a concise and accurate response based on the retrieved context.",
@@ -143,6 +148,7 @@ class RAGGenerationRequest(BaseModel):
                 "temperature": 0.7
             }
         }
+    }
 
 class RAGGenerationResponse(BaseModel):
     """Schema for RAG generation responses."""
@@ -166,8 +172,8 @@ class HybridSearchRequest(BaseModel):
     use_nvidia_api: bool = True
     filter_metadata: Optional[Dict[str, Any]] = None
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "query_text": "diabetes treatment options",
                 "semantic_weight": 0.7,
@@ -175,6 +181,7 @@ class HybridSearchRequest(BaseModel):
                 "top_k": 5
             }
         }
+    }
 
 class HybridSearchResponse(BaseModel):
     """Schema for hybrid search responses."""
@@ -195,8 +202,8 @@ class CrossPackageContextRequest(BaseModel):
     semantic_weight: Optional[float] = 0.7
     keyword_weight: Optional[float] = 0.3
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "query_text": "treatment options for chronic conditions",
                 "max_packages": 5,
@@ -205,6 +212,7 @@ class CrossPackageContextRequest(BaseModel):
                 "use_hybrid_search": True
             }
         }
+    }
 
 class CrossPackageContextResponse(BaseModel):
     """Schema for cross-package context responses."""
@@ -226,15 +234,16 @@ class QueryExpansionRequest(BaseModel):
     max_expansions: Optional[int] = 3
     expansion_model: Optional[str] = None
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "query_text": "diabetes",
-                "top_k": 10,
+                "top_k": 5,
                 "use_hybrid_search": True,
                 "max_expansions": 3
             }
         }
+    }
 
 class QueryExpansionResponse(BaseModel):
     """Schema for query expansion responses."""
@@ -254,22 +263,23 @@ class FacetedSearchRequest(BaseModel):
     use_hybrid_search: bool = True
     top_k: Optional[int] = None
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
-                "query_text": "diabetes medication",
+                "query_text": "diabetes treatment",
                 "facets": {
-                    "data_type": ["medical_records", "research_papers"],
-                    "source": ["trusted_provider", "academic"]
+                    "data_type": ["medication", "procedure"],
+                    "severity": ["mild", "moderate"]
                 },
                 "facet_weights": {
-                    "data_type": 0.6,
-                    "source": 0.4
+                    "data_type": 0.7,
+                    "severity": 0.3
                 },
                 "use_hybrid_search": True,
                 "top_k": 10
             }
         }
+    }
 
 class FacetedSearchResponse(BaseModel):
     """Schema for faceted search responses."""

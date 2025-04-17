@@ -19,7 +19,7 @@ from datetime import datetime
 import asyncio
 
 from app.database import get_db
-from app.models import DataPackageEmbedding, DataPackage
+from app.models import DataPackageEmbedding
 from app.config import settings
 from app.services.llm_service import LLMService, get_llm_service
 from app.services.data_packaging import DataPackagingService, get_data_packaging_service
@@ -41,6 +41,22 @@ if settings.DATABASE_URL.startswith('postgresql'):
     from sqlalchemy import Float as SqlFloat
     from sqlalchemy.dialects.postgresql import ARRAY, JSONB
     from sqlalchemy.dialects.postgresql.operators import custom_op
+
+# Add safe import fallback
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    # Provide a clear error message if the library is missing
+    raise ImportError(
+        "sentence-transformers is not installed. Run `pip install sentence-transformers`."
+    )
+
+# Add safe import fallback for NVIDIA API SDK
+try:
+    from nvidia.ai.endpoints import NvEmbeddings
+except ImportError:
+    NvEmbeddings = None # Set to None if not available
+    log.warning("NVIDIA API SDK not found. NVIDIA embedding models will be unavailable.")
 
 class EmbeddingService:
     """Service for managing vector embeddings and semantic search"""

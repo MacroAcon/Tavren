@@ -3,7 +3,7 @@ import json
 import hashlib
 import base64
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
@@ -14,16 +14,18 @@ from pathlib import Path
 import os
 import hmac
 
-from app.models import ConsentEvent, DSRActionLog, InsightQueryLog
-from app.services.consent_ledger import ConsentLedgerService, get_consent_ledger_service
+# Import models directly (these should be available without circular issues)
+from app.models import ConsentEvent, User
 from app.config import settings
 from app.database import get_db
-from app.models.user import User
-from app.models.dsr import DSRAction
-from app.utils.crypto import load_private_key, sign_data
-from app.models.consent import ConsentRecord
-from app.models.insight import InsightRequest
-from app.models.dsr import DSRRequest
+
+# We'll use string-based annotations and TYPE_CHECKING for problematic types
+if TYPE_CHECKING:
+    from app.models import DSRAction
+    from app.services.consent_ledger import ConsentLedgerService
+
+# Import this one inside functions to avoid circular imports
+# from app.services.consent_ledger import ConsentLedgerService, get_consent_ledger_service
 
 # Get logger
 log = logging.getLogger("app")
@@ -63,8 +65,10 @@ class ConsentExportService:
         )
         return result.scalars().all()
 
-    async def _get_dsr_actions(self, user_id: str) -> List[DSRAction]:
+    async def _get_dsr_actions(self, user_id: str) -> List["DSRAction"]:
         """Get all DSR actions for a user."""
+        # Import DSRAction here to avoid circular import
+        from app.models import DSRAction
         result = await self.db.execute(
             select(DSRAction).where(DSRAction.user_id == user_id)
             .order_by(DSRAction.timestamp.asc())
@@ -87,6 +91,7 @@ class ConsentExportService:
             return False
             
         try:
+            from app.utils.crypto import load_private_key
             self._private_key = load_private_key(settings.EXPORT_SIGNING_KEY_PATH)
             return True
         except Exception as e:
@@ -171,7 +176,7 @@ class ConsentExportService:
             for event in events
         ]
 
-    def _format_dsr_actions(self, actions: List[DSRAction]) -> List[Dict]:
+    def _format_dsr_actions(self, actions: List["DSRAction"]) -> List[Dict]:
         """Format DSR actions for the export."""
         return [
             {
@@ -236,7 +241,7 @@ class ConsentExportService:
         # Prepare export data
         export_data = {
             "export_id": str(uuid4()),
-            "export_timestamp": datetime.datetime.utcnow().isoformat(),
+            "export_timestamp": datetime.utcnow().isoformat(),
             "export_version": "1.0",
             "user_id": user_id,
             "user_details": {
@@ -286,7 +291,7 @@ class ConsentExportService:
         try:
             export_id = export_data.get("export_id", str(uuid4()))
             user_id = export_data.get("user_id", "unknown")
-            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
             
             filename = f"{user_id}_export_{timestamp}_{export_id[:8]}.json"
             filepath = self.export_dir / filename

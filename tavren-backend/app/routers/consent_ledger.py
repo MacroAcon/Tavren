@@ -18,7 +18,7 @@ from app.utils.response_utils import handle_exception
 from app.logging.log_utils import log_api_request, log_exception
 from app.constants.status import HTTP_500_INTERNAL_SERVER_ERROR
 from app.dependencies import get_current_user, get_current_admin_user
-from app.models.user import User
+from app.models import User
 from app.utils.consent_export import get_consent_export
 
 # Get logger

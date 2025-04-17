@@ -95,9 +95,13 @@ async def startup_event():
         log.info(f"Creating data directory: {data_dir}")
         data_dir.mkdir(parents=True, exist_ok=True)
     
-    # Log startup summary
-    redis_status = get_redis_status()
-    log.info(f"✅ Tavren backend started. Redis status: {redis_status}.")
+    # Log startup summary with Redis status
+    try:
+        redis_status = get_redis_status()
+        log.info(f"✅ Tavren backend started. Redis status: {redis_status}.")
+    except Exception as e:
+        log.warning(f"⚠️ Failed to get Redis status: {str(e)}")
+        log.info("✅ Tavren backend started. Redis status: unknown.")
 
 # Apply Rate Limiter to App
 app.state.limiter = limiter

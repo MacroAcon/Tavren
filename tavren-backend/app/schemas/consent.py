@@ -37,8 +37,9 @@ class ConsentEventResponse(BaseModel):
     verification_hash: Optional[str] = Field(None, description="Verification hash for tamper evidence")
     prev_hash: Optional[str] = Field(None, description="Hash of the previous event in the chain")
 
-    class Config:
-        from_attributes = True  # Modern Pydantic v2 attribute for ORM mode
+    model_config = {
+        "from_attributes": True  # Modern Pydantic v2 attribute for ORM mode
+    }
 
 class ConsentLedgerExport(BaseModel):
     """Model for exporting the consent ledger"""
@@ -82,13 +83,14 @@ class BuyerAccessLevel(BaseModel):
     access: str = Field(..., description="Access level (full, limited, restricted)")
     trust_score: float
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "access": ACCESS_FULL,
                 "trust_score": 0.95
             }
         }
+    }
 
 class FilteredOffer(BaseModel):
     """Schema for filtered offers based on sensitivity."""
@@ -96,14 +98,15 @@ class FilteredOffer(BaseModel):
     description: str
     sensitivity_level: str = Field(..., description="Sensitivity level (low, medium, high)")
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "title": "Share location data",
                 "description": "Share your approximate location data for improved service",
                 "sensitivity_level": SENSITIVITY_MEDIUM
             }
         }
+    }
 
 class SuggestionSuccessStats(BaseModel):
     """Schema for suggestion success statistics."""

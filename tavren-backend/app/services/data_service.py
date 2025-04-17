@@ -2,18 +2,22 @@
 Data Service for coordinating data operations across packaging, consent, and buyers.
 """
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, TYPE_CHECKING, Annotated
 from fastapi import HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from datetime import datetime
+
+# Use TYPE_CHECKING for AsyncSession to avoid circular imports at runtime
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession 
 
 from app.models import ConsentEvent
 from app.services.data_packaging import DataPackagingService, get_data_packaging_service
 from app.services.trust_service import TrustService
 from app.database import get_db
-
-# Set up logging
-log = logging.getLogger("app")
+from app.core.logging import log
+from app.schemas import DataPackageRequest, DataPackageResponse, DataSchemaInfo
 
 class DataService:
     """
@@ -189,6 +193,84 @@ class DataService:
         # await reward_service.create_reward(user_id, offer_id, amount)
         pass
 
-async def get_data_service(db: AsyncSession) -> DataService:
+    async def create_data_package(self, request: DataPackageRequest) -> DataPackageResponse:
+        """Create a new data package"""
+        try:
+            # Validate schema exists
+            schema = await self._get_schema(request.schema_name)
+            if not schema:
+                raise ValueError(f"Schema {request.schema_name} not found")
+
+            # Create package
+            package_id = await self._generate_package_id()
+            data = await self._fetch_data(schema, request.filters)
+            
+            return DataPackageResponse(
+                package_id=package_id,
+                schema_name=request.schema_name,
+                data=data,
+                created_at=datetime.utcnow().isoformat()
+            )
+        except Exception as e:
+            log.error(f"Error creating data package: {str(e)}")
+            raise
+
+    async def get_data_package(self, package_id: str) -> DataPackageResponse:
+        """Retrieve a data package by ID"""
+        try:
+            # Fetch package from storage
+            package = await self._fetch_package(package_id)
+            if not package:
+                raise ValueError(f"Package {package_id} not found")
+            
+            return package
+        except Exception as e:
+            log.error(f"Error retrieving data package {package_id}: {str(e)}")
+            raise
+
+    async def get_available_schemas(self) -> List[DataSchemaInfo]:
+        """Get list of available data schemas"""
+        try:
+            schemas = await self._fetch_schemas()
+            return [
+                DataSchemaInfo(
+                    name=schema["name"],
+                    description=schema["description"],
+                    fields=schema["fields"]
+                )
+                for schema in schemas
+            ]
+        except Exception as e:
+            log.error(f"Error retrieving schemas: {str(e)}")
+            raise
+
+    async def _get_schema(self, schema_name: str) -> Optional[Dict[str, Any]]:
+        """Get schema definition"""
+        # Implementation would fetch from database or config
+        pass
+
+    async def _generate_package_id(self) -> str:
+        """Generate a unique package ID"""
+        # Implementation would generate a unique ID
+        pass
+
+    async def _fetch_data(self, schema: Dict[str, Any], filters: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Fetch data according to schema and filters"""
+        # Implementation would fetch and transform data
+        pass
+
+    async def _fetch_package(self, package_id: str) -> Optional[DataPackageResponse]:
+        """Fetch package from storage"""
+        # Implementation would fetch from database or cache
+        pass
+
+    async def _fetch_schemas(self) -> List[Dict[str, Any]]:
+        """Fetch available schemas"""
+        # Implementation would fetch from database or config
+        pass
+
+# Using Annotated helps FastAPI distinguish dependency injection from response model fields,
+# preventing errors when a response_model is defined on a route that depends on non-Pydantic types like AsyncSession.
+async def get_data_service(db: Annotated[AsyncSession, Depends(get_db)]) -> DataService:
     """Dependency for getting the data service."""
     return DataService(db) 
